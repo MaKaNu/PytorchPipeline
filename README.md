@@ -1,4 +1,4 @@
-# PytorchPipeline
+# PytorchImagePipeline
 
 [![Release](https://img.shields.io/github/v/release/makanu/PytorchPipeline)](https://img.shields.io/github/v/release/makanu/PytorchPipeline)
 [![Build status](https://img.shields.io/github/actions/workflow/status/makanu/PytorchPipeline/main.yml?branch=main)](https://github.com/makanu/PytorchPipeline/actions/workflows/main.yml?query=branch%3Amain)
@@ -8,8 +8,8 @@
 
 This is a repository for creating and running Pytorch Image Pipelines.
 
-- **Github repository**: <https://github.com/makanu/PytorchPipeline/>
-- **Documentation** <https://makanu.github.io/PytorchPipeline/>
+- **Github repository**: <https://github.com/makanu/PytorchImagePipeline/>
+- **Documentation** <https://makanu.github.io/PytorchImagePipeline/>
 
 ## Getting started with your project
 
