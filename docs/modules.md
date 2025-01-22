@@ -1,1 +1,1 @@
-::: pytorchpipeline.foo
+::: pytorchimagepipeline.foo

@@ -6,7 +6,7 @@
 [![Commit activity](https://img.shields.io/github/commit-activity/m/makanu/PytorchPipeline)](https://img.shields.io/github/commit-activity/m/makanu/PytorchPipeline)
 [![License](https://img.shields.io/github/license/makanu/PytorchPipeline)](https://img.shields.io/github/license/makanu/PytorchPipeline)
 
-This is a repository for creating and running Pytorch Pipelines.
+This is a repository for creating and running Pytorch Image Pipelines.
 
 - **Github repository**: <https://github.com/makanu/PytorchPipeline/>
 - **Documentation** <https://makanu.github.io/PytorchPipeline/>

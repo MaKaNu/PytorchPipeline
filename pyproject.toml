@@ -1,7 +1,7 @@
 [project]
-name = "PytorchPipeline"
+name = "PytorchImagePipeline"
 version = "0.0.1"
-description = "This is a repository for creating and running Pytorch Pipelines."
+description = "This is a repository for creating and running Pytorch Image Pipelines."
 authors = [{ name = "Matti Kaupenjohann", email = "matti.kaupenjohann@fh-dortmund.de" }]
 readme = "README.md"
 keywords = ['python']
@@ -19,9 +19,9 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://makanu.github.io/PytorchPipeline/"
-Repository = "https://github.com/makanu/PytorchPipeline"
-Documentation = "https://makanu.github.io/PytorchPipeline/"
+Homepage = "https://makanu.github.io/PytorchImagePipeline/"
+Repository = "https://github.com/makanu/PytorchImagePipeline"
+Documentation = "https://makanu.github.io/PytorchImagePipeline/"
 
 [dependency-groups]
 dev = [
@@ -42,10 +42,10 @@ requires = ["setuptools >= 61.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-py-modules = ["pytorchpipeline"]
+py-modules = ["pytorchimagepipeline"]
 
 [tool.mypy]
-files = ["pytorchpipeline"]
+files = ["pytorchimagepipeline"]
 disallow_untyped_defs = true
 disallow_any_unimported = true
 no_implicit_optional = true
@@ -113,4 +113,4 @@ skip_empty = true
 
 [tool.coverage.run]
 branch = true
-source = ["pytorchpipeline"]
+source = ["pytorchimagepipeline"]

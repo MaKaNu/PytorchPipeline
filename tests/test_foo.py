@@ -1,4 +1,4 @@
-from pytorchpipeline.foo import foo
+from pytorchimagepipeline.foo import foo
 
 
 def test_foo():
