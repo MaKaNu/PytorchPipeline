@@ -17,6 +17,10 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
 ]
+dependencies = [
+    "torch>=2.5.1",
+    "torchvision>=0.20.1",
+]
 
 [project.urls]
 Homepage = "https://makanu.github.io/PytorchImagePipeline/"
