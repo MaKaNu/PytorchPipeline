@@ -9,7 +9,15 @@ copyright: Maintained by <a href="https://makanu.com">makanu</a>.
 
 nav:
   - Home: index.md
-  - Modules: modules.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Getting Started: getting_started.md
+  - Modules:
+      - builder.py: modules/builder.md
+      - observer.py: modules/observer.md
+      - abstractions.py: modules/abstractions.md
+      - errors.py: modules/errors.md
+  - Ideas: ideas.md
 plugins:
   - search
   - macros
