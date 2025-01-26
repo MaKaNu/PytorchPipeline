@@ -32,15 +32,19 @@ from pytorchimagepipeline.observer import Observer
 
 class MockedPermanence(Permanence):
     def cleanup(self):
-        return super().cleanup()
+        print("Running cleanup")
+        return None
 
 
 class MockedPipelineProcess(PipelineProcess):
     def execute(self, observer):
-        return super().execute(observer)
+        print(f"Running execute with {observer}")
+        return None
 
 
 class TestPipelineBuilder:
+    pipeline_builder: PipelineBuilder
+
     @pytest.fixture(autouse=True, scope="class")
     def fixture_class(self):
         cls = type(self)
