@@ -12,6 +12,7 @@ nav:
   - Modules: modules.md
 plugins:
   - search
+  - macros
   - mkdocstrings:
       handlers:
         python:
@@ -44,6 +45,12 @@ extra:
       link: https://github.com/makanu/PytorchPipeline
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/PytorchPipeline
+  # ShortsLinks for modules
+  permanence: pytorchimagepipeline.abstractions.Permanence
+  process: pytorchimagepipeline.abstractions.PipelineProcess
+  process_execute: pytorchimagepipeline.abstractions.PipelineProcess.execute
+  builder: pytorchimagepipeline.builder.PipelineBuilder
+  observer: pytorchimagepipeline.observer.Observer
 
 markdown_extensions:
   - toc:
