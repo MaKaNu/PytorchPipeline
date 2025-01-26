@@ -237,8 +237,11 @@ def get_objects_for_pipeline(pipeline_name: str) -> dict[str, type]:
                          of the specified pipeline module.
     """
     full_module_name = "pytorchimagepipeline.pipelines." + pipeline_name
-    module = importlib.import_module(full_module_name)
-    return module.permanences_to_register | module.processes_to_register
+    try:
+        module = importlib.import_module(full_module_name)
+    except ModuleNotFoundError as e:
+        return {}, e
+    return module.permanences_to_register | module.processes_to_register, None
 
 
 # Usage Example
