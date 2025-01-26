@@ -40,10 +40,12 @@ from pathlib import Path
 from typing import Any, Optional
 
 try:
-    import tomllib
+    from tomllib import TOMLDecodeError
+    from tomllib import load as toml_load
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore  # noqa: PGH003
+        from tomli import TOMLDecodeError  # type: ignore  # noqa: PGH003
+        from tomli import load as toml_load  # type: ignore  # noqa: PGH003
     except ImportError:
         sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
@@ -61,7 +63,7 @@ from pytorchimagepipeline.observer import Observer
 
 
 class PipelineBuilder:
-    def __init__(self):
+    def __init__(self) -> None:
         """
         Initializes the builder with empty configuration and class registry.
 
@@ -87,6 +89,7 @@ class PipelineBuilder:
         if not issubclass(cls, (Permanence, PipelineProcess)):
             return RegistryError(name)
         self._class_registry[name] = cls
+        return None
 
     def load_config(self, config_path: Path) -> Optional[Exception]:
         """
@@ -111,8 +114,8 @@ class PipelineBuilder:
             return ConfigPermissionError(config_path_extended)
         with open(config_path_extended, "rb") as f:
             try:
-                self._config = tomllib.load(f)
-            except tomllib.TOMLDecodeError:
+                self._config |= toml_load(f)
+            except TOMLDecodeError:
                 return ConfigInvalidTomlError(config_path_extended)
         error = self._validate_config_sections()
         return error
@@ -131,6 +134,7 @@ class PipelineBuilder:
         for section in required_sections:
             if section not in self._config:
                 return ConfigSectionError(section)
+        return None
 
     def build(self) -> tuple[Observer, Optional[Exception]]:
         """
@@ -142,14 +146,14 @@ class PipelineBuilder:
         """
         permanence, error = self._build_permanences()
         if error:
-            return None, error
+            return Observer(permanences={}), error
         observer = Observer(permanences=permanence)
         error = self._build_processes(observer)
         if error:
-            return None, error
+            return observer, error
         return observer, None
 
-    def _build_permanences(self) -> tuple[dict[str, Any], Optional[Exception]]:
+    def _build_permanences(self) -> tuple[dict[str, Permanence], Optional[Exception]]:
         """
         Construct permanence objects with error handling.
 
@@ -160,17 +164,19 @@ class PipelineBuilder:
         dictionary and the encountered error.
 
         Returns:
-            tuple[dict[str, Any], Optional[Exception]]: A tuple containing:
+            tuple[dict[str, Permanence], Optional[Exception]]: A tuple containing:
                 - A dictionary where keys are permanence names and values are
                   the instantiated permanence objects.
                 - An optional Exception if an error occurred during instantiation,
                   otherwise None.
         """
-        objects = {}
+        objects: dict[str, Permanence] = {}
         for name, config in self._config["permanences"].items():
-            objects[name], error = self._instantiate_from_config(name, config)
+            instance, error = self._instantiate_from_config(name, config)
             if error:
                 return {}, error
+            if isinstance(instance, Permanence):
+                objects[name] = instance
         return objects, None
 
     def _build_processes(self, observer: "Observer") -> Optional[Exception]:
@@ -188,13 +194,15 @@ class PipelineBuilder:
             process, error = self._instantiate_from_config(name, config)
             if error:
                 return error
-            error = observer.add_process(process)
-            if error:
-                return error
+            if isinstance(process, PipelineProcess):
+                observer.add_process(process)
+                if error:
+                    return error
+        return None
 
     def _instantiate_from_config(
         self, context: str, config: dict[str, Any]
-    ) -> tuple[Permanence | PipelineProcess, Optional[Exception]]:
+    ) -> tuple[Optional[Permanence | PipelineProcess], Optional[Exception]]:
         """
         Instantiate an object from a configuration dictionary.
 

@@ -27,7 +27,6 @@ from pytorchimagepipeline.errors import (
     BuilderError,
     ErrorCode,
     ExecutionError,
-    InstTypeError,
     PermanenceKeyError,
 )
 
@@ -44,17 +43,12 @@ class Observer(AbstractObserver):
         self._processes: list[PipelineProcess] = []
         self._current_process: Optional[PipelineProcess] = None
 
-    def add_process(self, process: PipelineProcess) -> Optional[Exception]:
+    def add_process(self, process: PipelineProcess) -> None:
         """Adds a process to the pipeline.
 
         Args:
             process (PipelineProcess): The process to add.
-
-        Returns:
-            Optional[Exception]: An exception if the process is not of type PipelineProcess, otherwise None.
         """
-        if not isinstance(process, PipelineProcess):
-            return InstTypeError(process)
         self._processes.append(process)
 
     def run(self) -> None:

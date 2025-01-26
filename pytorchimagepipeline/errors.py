@@ -46,59 +46,59 @@ class ErrorCode(Enum):
 class BuilderError(RuntimeError):
     error_value: Any
 
-    def __post_init__(self, error_code):
+    def __post_init__(self, error_code: ErrorCode) -> None:  # type: ignore  # noqa: PGH003
         self.error_code = error_code
 
-    def __str__(self):
+    def __str__(self) -> str:
         return f"[{self.error_code.code}]: {self.error_code.message}: {self.error_value}"
 
 
 class ConfigNotFoundError(BuilderError):
     """Raised when the builder configuration file does not exists"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.CONFIG_MISSING)
 
 
 class ConfigPermissionError(BuilderError):
     """Raised when the builder configuration file does not exists"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.CONFIG_PERMISSION)
 
 
 class ConfigInvalidTomlError(BuilderError):
     """Raised when the configuration file is not valid toml"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.CONFIG_INVALID)
 
 
 class ConfigSectionError(BuilderError):
     """Raised for config section missing"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.CONFIG_SECTION)
 
 
 class RegistryError(BuilderError):
     """Raised for class registration issues"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.REGISTRY_INVALID)
 
 
 class RegistryParamError(BuilderError):
     """Raised for class instatioation with wrong params"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.REGISTRY_PARAM)
 
 
 class InstTypeError(BuilderError):
     """Raised when type in config not set"""
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         super().__post_init__(ErrorCode.INST_TYPE)
 
 
@@ -114,9 +114,14 @@ class ExecutionError(Exception):
 ## PERMANENCE
 class PermanenceError(RuntimeError):
     def __init__(self, error_code: ErrorCode):
+        self.error_code = error_code
         super().__init__(f"[{error_code.code}]: raised without further context")
 
 
 class PermanenceKeyError(PermanenceError):
-    def __init__(self, error_code: ErrorCode, key: str):
-        super().__init__(f"[{error_code.code}]: {error_code.message} -> {key}")
+    def __init__(self, error_code: ErrorCode, key: str) -> None:
+        self.key = key
+        super().__init__(error_code)
+
+    def __str__(self) -> str:
+        return f"[{self.error_code.code}]: {self.error_code.message} -> {self.key}"
