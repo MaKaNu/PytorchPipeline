@@ -166,7 +166,6 @@ class PipelineBuilder:
                 - An optional Exception if an error occurred during instantiation,
                   otherwise None.
         """
-        """Construct permanence objects with error handling"""
         objects = {}
         for name, config in self._config["permanences"].items():
             objects[name], error = self._instantiate_from_config(name, config)
