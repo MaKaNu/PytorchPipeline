@@ -155,3 +155,26 @@ The creation of test cases is a recommended approach, since at the end multiple 
 Instead of running all the time the complete pipeline, checking each bit with artificial and abstract test cases could provide spare time.
 Not only this, after iterating through changes in the pipeline library, we are able to verify the correctness of the step in the Pipeline.
 In a certain situation it might be necessary to extend the test case to fulfil new challenges, which were not thought about at the beginning of the Pipeline development.
+
+## Documentation
+
+As the last step or in parallel while developing a new pipeline, documenting the pipeline is a key feature of this package.
+
+- Create a new markdown file with the name of the pipeline under `docs/pipelines`.
+- Fill the markdown with the description, goal and results of the pipeline.
+  - As example the `Visualization` could directly output images for documentation to the `docs/assets` location.
+- Add the markdown file to navigation in `mkdocs.yml`:
+
+```diff
+@@ -12,7 +12,8 @@ nav:
+   - Installation: installation.md
+   - Usage: usage.md
+   - Getting Started: getting_started.md
+   - Pipelines:
++      - new_pipeline: pipelines/new_pipeline.md
+   - Modules:
+       - builder.py: modules/builder.md
+       - observer.py: modules/observer.md
+```
+
+Additional also extending the module section is possible.
