@@ -1,9 +1,16 @@
 import importlib
 import os
+import sys
 from pathlib import Path
 from typing import Any, Optional
 
-import tomllib
+try:
+    import tomllib
+except ImportError:
+    try:
+        import tomli as tomllib  # type: ignore  # noqa: PGH003
+    except ImportError:
+        sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
 from pytorchimagepipeline.abstractions import Permanence, PipelineProcess
 from pytorchimagepipeline.errors import (
