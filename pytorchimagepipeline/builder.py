@@ -33,19 +33,21 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+from __future__ import annotations
+
 import importlib
 import os
 import sys
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 try:
-    from tomllib import TOMLDecodeError
-    from tomllib import load as toml_load
+    from tomllib import TOMLDecodeError  # type ignore[import-not-found]
+    from tomllib import load as toml_load  # type ignore[import-not-found]
 except ImportError:
     try:
-        from tomli import TOMLDecodeError  # type: ignore  # noqa: PGH003
-        from tomli import load as toml_load  # type: ignore  # noqa: PGH003
+        from tomli import TOMLDecodeError  # type: ignore  # noqa: PGH003  # type: ignore[unused-import]
+        from tomli import load as toml_load  # type: ignore  # noqa: PGH003 # type: ignore[unused-import]
     except ImportError:
         sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
@@ -74,7 +76,7 @@ class PipelineBuilder:
         self._config: dict[str, Any] = {}
         self._class_registry: dict[str, type] = {}
 
-    def register_class(self, name: str, cls: type) -> Optional[Exception]:
+    def register_class(self, name: str, cls: type) -> None | Exception:
         """
         Registers a class in the class registry.
 
@@ -91,7 +93,7 @@ class PipelineBuilder:
         self._class_registry[name] = cls
         return None
 
-    def load_config(self, config_path: Path) -> Optional[Exception]:
+    def load_config(self, config_path: Path) -> None | Exception:
         """
         Loads a configuration file from the specified path.
 
@@ -120,7 +122,7 @@ class PipelineBuilder:
         error = self._validate_config_sections()
         return error
 
-    def _validate_config_sections(self) -> Optional[Exception]:
+    def _validate_config_sections(self) -> None | Exception:
         """
         Validate required configuration sections.
 
@@ -136,7 +138,7 @@ class PipelineBuilder:
                 return ConfigSectionError(section)
         return None
 
-    def build(self) -> tuple[Observer, Optional[Exception]]:
+    def build(self) -> tuple[Observer, None | Exception]:
         """
         Construct the complete pipeline.
 
@@ -153,7 +155,7 @@ class PipelineBuilder:
             return observer, error
         return observer, None
 
-    def _build_permanences(self) -> tuple[dict[str, Permanence], Optional[Exception]]:
+    def _build_permanences(self) -> tuple[dict[str, Permanence], None | Exception]:
         """
         Construct permanence objects with error handling.
 
@@ -179,7 +181,7 @@ class PipelineBuilder:
                 objects[name] = instance
         return objects, None
 
-    def _build_processes(self, observer: "Observer") -> Optional[Exception]:
+    def _build_processes(self, observer: Observer) -> None | Exception:
         """
         Builds and adds processes to the observer based on the configuration.
 
@@ -201,7 +203,7 @@ class PipelineBuilder:
 
     def _instantiate_from_config(
         self, context: str, config: dict[str, Any]
-    ) -> tuple[Optional[Permanence | PipelineProcess], Optional[Exception]]:
+    ) -> tuple[Permanence | PipelineProcess | None, None | Exception]:
         """
         Instantiate an object from a configuration dictionary.
 
@@ -231,7 +233,7 @@ class PipelineBuilder:
             return None, RegistryParamError(params)
 
 
-def get_objects_for_pipeline(pipeline_name: str) -> tuple[dict[str, type], Optional[Exception]]:
+def get_objects_for_pipeline(pipeline_name: str) -> tuple[dict[str, type], None | Exception]:
     """
     Retrieves and combines objects to be registered for a given pipeline.
 
