@@ -1,10 +1,10 @@
 site_name: PytorchPipeline
-repo_url: https://github.com/makanu/PytorchPipeline
-site_url: https://makanu.github.io/PytorchPipeline
+repo_url: https://github.com/makanu/PytorchImagePipeline
+site_url: https://makanu.github.io/PytorchImagePipeline
 site_description: This is a repository for creating and running Pytorch Pipelines.
 site_author: Matti Kaupenjohann
 edit_uri: edit/main/docs/
-repo_name: makanu/PytorchPipeline
+repo_name: makanu/PytorchImagePipeline
 copyright: Maintained by <a href="https://makanu.com">makanu</a>.
 
 nav:
