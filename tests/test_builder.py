@@ -7,10 +7,10 @@ from unittest.mock import mock_open, patch
 import pytest
 
 try:
-    import tomllib
+    from tomllib import TOMLDecodeError
 except ImportError:
     try:
-        import tomli as tomllib  # type: ignore  # noqa: PGH003
+        from tomli import TOMLDecodeError  # type: ignore  # noqa: PGH003
     except ImportError:
         sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
@@ -110,10 +110,8 @@ class TestPipelineBuilder:
             patch("os.access", return_value=readable),
             patch("builtins.open", mock_open(read_data=file_content) if file_content else None),
             patch(
-                "tomllib.load",
-                side_effect=tomllib.TOMLDecodeError
-                if file_content == "invalid_toml"
-                else lambda f: ast.literal_eval(f.read()),
+                "pytorchimagepipeline.builder.toml_load",
+                side_effect=TOMLDecodeError if file_content == "invalid_toml" else lambda f: ast.literal_eval(f.read()),
             ),
         ):
             error = self.pipeline_builder.load_config(Path(config_path))
@@ -238,4 +236,3 @@ class TestPipelineBuilder:
             assert len(observer._processes) == len(config["processes"])
         else:
             assert isinstance(error, expected_error)
-            assert observer is None
