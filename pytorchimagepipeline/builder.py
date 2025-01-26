@@ -194,10 +194,9 @@ class PipelineBuilder:
             process, error = self._instantiate_from_config(name, config)
             if error:
                 return error
-            if isinstance(process, PipelineProcess):
-                observer.add_process(process)
-                if error:
-                    return error
+            if not isinstance(process, PipelineProcess):
+                return InstTypeError(process)
+            observer.add_process(process)
         return None
 
     def _instantiate_from_config(
