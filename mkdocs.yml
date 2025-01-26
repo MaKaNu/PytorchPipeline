@@ -1,17 +1,27 @@
 site_name: PytorchPipeline
-repo_url: https://github.com/makanu/PytorchPipeline
-site_url: https://makanu.github.io/PytorchPipeline
+repo_url: https://github.com/makanu/PytorchImagePipeline
+site_url: https://makanu.github.io/PytorchImagePipeline
 site_description: This is a repository for creating and running Pytorch Pipelines.
 site_author: Matti Kaupenjohann
 edit_uri: edit/main/docs/
-repo_name: makanu/PytorchPipeline
+repo_name: makanu/PytorchImagePipeline
 copyright: Maintained by <a href="https://makanu.com">makanu</a>.
 
 nav:
   - Home: index.md
-  - Modules: modules.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Getting Started: getting_started.md
+  - Pipelines: []
+  - Modules:
+      - builder.py: modules/builder.md
+      - observer.py: modules/observer.md
+      - abstractions.py: modules/abstractions.md
+      - errors.py: modules/errors.md
+  - Ideas: ideas.md
 plugins:
   - search
+  - macros
   - mkdocstrings:
       handlers:
         python:
@@ -44,9 +54,20 @@ extra:
       link: https://github.com/makanu/PytorchPipeline
     - icon: fontawesome/brands/python
       link: https://pypi.org/project/PytorchPipeline
+  # ShortsLinks for modules
+  permanence: pytorchimagepipeline.abstractions.Permanence
+  process: pytorchimagepipeline.abstractions.PipelineProcess
+  process_execute: pytorchimagepipeline.abstractions.PipelineProcess.execute
+  builder: pytorchimagepipeline.builder.PipelineBuilder
+  observer: pytorchimagepipeline.observer.Observer
 
 markdown_extensions:
   - toc:
       permalink: true
   - pymdownx.arithmatex:
       generic: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.blocks.caption
+  - footnotes
