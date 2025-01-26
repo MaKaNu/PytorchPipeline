@@ -12,6 +12,7 @@ nav:
   - Installation: installation.md
   - Usage: usage.md
   - Getting Started: getting_started.md
+  - Pipelines: []
   - Modules:
       - builder.py: modules/builder.md
       - observer.py: modules/observer.md
