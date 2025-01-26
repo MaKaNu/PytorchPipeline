@@ -2165,6 +2165,7 @@ name = "pytorchimagepipeline"
 version = "0.0.1"
 source = { editable = "." }
 dependencies = [
+    { name = "rich" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "torch" },
     { name = "torchvision" },
@@ -2195,6 +2196,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "rich", specifier = ">=13.9.4" },
     { name = "tomli", marker = "python_full_version < '3.11'" },
     { name = "torch", specifier = ">=2.5.1" },
     { name = "torchvision", specifier = ">=0.20.1" },
