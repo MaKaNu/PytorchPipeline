@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 import ast
 import sys
 from pathlib import Path
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 from unittest.mock import mock_open, patch
 
 import pytest
@@ -55,7 +57,7 @@ class TestPipelineBuilder:
         ],
         ids=("ValidPermance", "ValidPipelineProcess", "InvalidDict", "InvalidStr"),
     )
-    def test_register_class(self, name: str, cls: type, expected_error: Optional[Exception]):
+    def test_register_class(self, name: str, cls: type, expected_error: None | type[Exception]):
         error = self.pipeline_builder.register_class(name, cls)
 
         if expected_error is None:
