@@ -71,17 +71,17 @@ class TestPipelineBuilder:
         "input_config, expected_error_section",
         [
             #
-            ({"permanent_objects": {}, "processes": {}}, None),
-            ({"permanent_objects": {}}, "processes"),
-            ({"processes": {}}, "permanent_objects"),
-            ({}, "permanent_objects"),
+            ({"permanences": {}, "processes": {}}, None),
+            ({"permanences": {}}, "processes"),
+            ({"processes": {}}, "permanences"),
+            ({}, "permanences"),
         ],
         ids=("Valid", "MissingProcess", "MissingPermanent", "MissingBoth"),
     )
     def test_validate_config_sections(
         self,
         input_config: dict[str, dict[Any, Any]],
-        expected_error_section: None | Literal["processes"] | Literal["permanent_objects"],
+        expected_error_section: None | Literal["processes"] | Literal["permanences"],
     ):
         self.pipeline_builder._config = input_config
         error = self.pipeline_builder._validate_config_sections()
@@ -99,7 +99,7 @@ class TestPipelineBuilder:
             ("unreadable_file.toml", True, False, None, ConfigPermissionError),
             ("invalid_file.toml", True, True, "invalid_toml", ConfigInvalidTomlError),
             ("missing_section.toml", True, True, '{"unrelated_key": "value"}', ConfigSectionError),
-            ("valid_file.toml", True, True, '{"permanent_objects": {}, "processes": {}}', None),
+            ("valid_file.toml", True, True, '{"permanences": {}, "processes": {}}', None),
         ],
         ids=("MissingConfig", "UnreadableConfig", "InvalidTOML", "MissingSection", "ValidConfig"),
     )
@@ -175,7 +175,7 @@ class TestPipelineBuilder:
             assert str(error)
 
     @pytest.mark.parametrize(
-        "permanent_objects_config, expected_error",
+        "permanences_config, expected_error",
         [
             ({"object1": {"type": "MockedPermanence"}}, None),  # Valid object
             ({"object1": {"type": "UnknownClass"}}, RegistryError),  # Unknown class
@@ -183,15 +183,15 @@ class TestPipelineBuilder:
         ],
         ids=("ValidObjects", "InvalidClass", "InvalidParams"),
     )
-    def test_build_permanent_objects(self, permanent_objects_config, expected_error):
+    def test_build_permanences(self, permanences_config, expected_error):
         self.pipeline_builder.register_class("MockedPermanence", MockedPermanence)
-        self.pipeline_builder._config["permanent_objects"] = permanent_objects_config
+        self.pipeline_builder._config["permanences"] = permanences_config
 
-        objects, error = self.pipeline_builder._build_permanent_objects()
+        objects, error = self.pipeline_builder._build_permanences()
 
         if expected_error is None:
             assert error is None
-            assert len(objects) == len(permanent_objects_config)
+            assert len(objects) == len(permanences_config)
         else:
             assert isinstance(error, expected_error)
             assert str(error)
@@ -202,21 +202,21 @@ class TestPipelineBuilder:
         [
             (
                 {
-                    "permanent_objects": {"object1": {"type": "MockedPermanence"}},
+                    "permanences": {"object1": {"type": "MockedPermanence"}},
                     "processes": {"process1": {"type": "MockedPipelineProcess"}},
                 },
                 None,
             ),  # Valid case
             (
                 {
-                    "permanent_objects": {"object1": {"type": "UnknownClass"}},
+                    "permanences": {"object1": {"type": "UnknownClass"}},
                     "processes": {"process1": {"type": "PipelineProcess"}},
                 },
                 RegistryError,
             ),  # Invalid permanent object
             (
                 {
-                    "permanent_objects": {"object1": {"type": "MockedPermanence"}},
+                    "permanences": {"object1": {"type": "MockedPermanence"}},
                     "processes": {"process1": {"type": "UnknownClass"}},
                 },
                 RegistryError,
@@ -234,7 +234,7 @@ class TestPipelineBuilder:
         if expected_error is None:
             assert error is None
             assert observer is not None
-            assert len(observer._permanent_objects) == len(config["permanent_objects"])
+            assert len(observer._permanences) == len(config["permanences"])
             assert len(observer._processes) == len(config["processes"])
         else:
             assert isinstance(error, expected_error)

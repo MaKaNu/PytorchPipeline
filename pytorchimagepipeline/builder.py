@@ -52,27 +52,24 @@ class PipelineBuilder:
         return error
 
     def _validate_config_sections(self) -> Optional[Exception]:
-        """Validate required configuration sections"""
-        required_sections = ["permanent_objects", "processes"]
+        required_sections = ["permanences", "processes"]
         for section in required_sections:
             if section not in self._config:
                 return ConfigSectionError(section)
 
     def build(self) -> tuple[Observer, Optional[Exception]]:
-        """Construct the complete pipeline"""
-        permanent, error = self._build_permanent_objects()
+        permanence, error = self._build_permanences()
         if error:
             return None, error
-        observer = Observer(permanent_objects=permanent)
+        observer = Observer(permanences=permanence)
         error = self._build_processes(observer)
         if error:
             return None, error
         return observer, None
 
-    def _build_permanent_objects(self) -> tuple[dict[str, Any], Optional[Exception]]:
-        """Construct permanent objects with error handling"""
+    def _build_permanences(self) -> tuple[dict[str, Any], Optional[Exception]]:
         objects = {}
-        for name, config in self._config["permanent_objects"].items():
+        for name, config in self._config["permanences"].items():
             objects[name], error = self._instantiate_from_config(name, config)
             if error:
                 return {}, error

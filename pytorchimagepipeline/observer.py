@@ -11,8 +11,8 @@ from pytorchimagepipeline.errors import (
 
 
 class Observer(AbstractObserver):
-    def __init__(self, permanent_objects: dict[str, Permanence]):
-        self._permanent_objects = permanent_objects
+    def __init__(self, permanences: dict[str, Permanence]):
+        self._permanences = permanences
         self._processes: list[PipelineProcess] = []
         self._current_process: Optional[PipelineProcess] = None
 
@@ -39,8 +39,7 @@ class Observer(AbstractObserver):
         process_name = self._current_process.__class__.__name__
         raise ExecutionError(process_name, error)
 
-    def get_permanent_object(self, name: str) -> Any:
-        """Retrieve permanent object with validation"""
-        if name not in self._permanent_objects:
+    def get_permanences(self, name: str) -> Any:
+        if name not in self._permanences:
             raise PermanenceKeyError(ErrorCode.PERMA_KEY, key=name)
-        return self._permanent_objects[name]
+        return self._permanences[name]
