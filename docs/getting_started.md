@@ -1,6 +1,6 @@
 # Getting Started
 
-> If you come this document to learn how to execute already implemented pipelines, please refer [Usage](usage.md)
+> If you want to study how to execute already implemented pipelines, please refer [Usage](usage.md)
 
 This document will teach how to create a new Pipeline, with all necessary parts.
 
@@ -8,17 +8,26 @@ The document is written under the Assumption a developer has already created str
 This could be done on paper, script or notebook, but the final product should already kind of manifested.
 Better in text, but in mind is also no issue.
 
-As described in the [Overview](index.md/#overview), the first step is to decide if a part of the Pipeline is a [`Permanence`][{{ permanence }}] or a [`PipelineProcess`][{{ process }}].
+As described in the [Overview](index.md/#overview), the first step is to decide if a part of the pipeline is a [`Permanence`][{{ permanence }}] or a [`PipelineProcess`][{{ process }}].
 
 ## Internal logic
 
 In detail the following image provides some information how the Pipeline is structured.
-If you don't want to read the internal logic jump straight to [Create Config](#create-config)
+If you do not want to read the internal logic jump straight to [Create Config](#create-config)
 
 ![UML](assets/PytorchImagePipeline.drawio.svg)
 ///caption
 UML Diagram sketch of `PytorchImagePipeline`
 ///
+
+In the diagram are the three main components of the PytorchImagePipeline depicted.
+The [`Observer`][{{ observer }}] class is central part of the pipeline, storing and providing all the necessary components of the pipeline.
+The [`Permanence`][{{ permanence }}] abstract class is used to create new implementations for objects which hold permanent information about the pipeline.
+As example a `Dataset` is a kind of information, which a process needs to access, but could be created without the flow of the pipeline.
+Compared to a script a `Dataset` is mostly an instance which is in the global scope.
+The [`PipelineProcess`][{{ process }}] abstract class is the opposite to a [`Permanence`][{{ permanence }}].
+As example a `Visualization` creates a figure, which displays given batch of images as subplots with certain config.
+Of course, we could extract further parts of the `Visualization` as new [`Permanence`][{{ permanence }}] implementations, as example the parameters of the figure.
 
 The [`Observer`][{{ observer }}] is instantiated with a dictionary of zero [`Permanence`][{{ permanence }}] or more.
 This step is displayed as the aggregation[^1].
@@ -87,8 +96,8 @@ An example config could look like the following:
 type = "Datasets"
 params = { root = "localhost", format = "pascalvoc" }
 
-[processes.dummy]
-type = "DummyProcess"
+[processes.viz]
+type = "Visualization"
 ```
 
 Here are one [`Permanence`][{{ permanence }}] and one [`PipelineProcess`][{{ process }}] object provided.
@@ -127,7 +136,7 @@ from permaneces import Datasets
 from processes import DummyProcess
 
 permanences_to_register = {"Datasets": Datasets}
-processes_to_register = {"DummyProcess": DummyProcess}
+processes_to_register = {"Visualization": Visualization}
 ```
 
 ## Execute or testing
