@@ -48,7 +48,7 @@ jobs:
 
       - name: Check typing
         run: uv run mypy
-        if: ${{ matrix.python-version == '3.11' }} or ${{ matrix.python-version == '3.12' }}
+        if: ${{ matrix.python-version == '3.11' || matrix.python-version == '3.12' }}
 
       - name: Upload coverage reports to Codecov with GitHub Action on Python 3.11
         uses: codecov/codecov-action@v5
