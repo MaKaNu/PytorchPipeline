@@ -224,7 +224,7 @@ class PipelineBuilder:
             return None, RegistryParamError(params)
 
 
-def get_objects_for_pipeline(pipeline_name: str) -> dict[str, type]:
+def get_objects_for_pipeline(pipeline_name: str) -> tuple[dict[str, type], Optional[Exception]]:
     """
     Retrieves and combines objects to be registered for a given pipeline.
 
@@ -246,18 +246,31 @@ def get_objects_for_pipeline(pipeline_name: str) -> dict[str, type]:
 
 # Usage Example
 if __name__ == "__main__":
-    objects = get_objects_for_pipeline("sam2segnet")
+    # Example usage of the PipelineBuilder
 
+    # Retrieve objects to be registered for the pipeline
+    objects, error = get_objects_for_pipeline("sam2segnet")
+    if error:
+        raise error
+
+    # Initialize the PipelineBuilder
     builder = PipelineBuilder()
+
+    # Register each class in the builder
     for key in objects:
         error = builder.register_class(key, objects[key])
         if error:
             raise error
 
-    error = builder.load_config("sam2segnet/execute_pipeline.toml")
+    # Load the configuration file
+    error = builder.load_config(Path("sam2segnet/execute_pipeline.toml"))
     if error:
         raise error
+
+    # Build the pipeline
     observer, error = builder.build()
     if error:
         raise error
+
+    # Run the pipeline
     observer.run()
