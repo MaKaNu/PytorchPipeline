@@ -15,7 +15,7 @@ except ImportError:
         sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
 from pytorchimagepipeline.abstractions import Permanence, PipelineProcess
-from pytorchimagepipeline.builder import PipelineBuilder
+from pytorchimagepipeline.builder import PipelineBuilder, get_objects_for_pipeline
 from pytorchimagepipeline.errors import (
     ConfigInvalidTomlError,
     ConfigNotFoundError,
@@ -236,3 +236,40 @@ class TestPipelineBuilder:
             assert len(observer._processes) == len(config["processes"])
         else:
             assert isinstance(error, expected_error)
+
+    @pytest.mark.parametrize(
+        "pipeline_name, module_exists, expected_error",
+        [
+            ("valid_pipeline", True, None),
+            ("invalid_pipeline", False, ModuleNotFoundError),
+        ],
+        ids=("ValidPipeline", "InvalidPipeline"),
+    )
+    def test_get_objects_for_pipeline(self, pipeline_name, module_exists, expected_error):
+        mock_module = type(
+            "MockModule",
+            (),
+            {
+                "permanences_to_register": {"perm1": MockedPermanence},
+                "processes_to_register": {"proc1": MockedPipelineProcess},
+            },
+        )
+
+        with patch("importlib.import_module") as mock_import:
+            if module_exists:
+                mock_import.return_value = mock_module
+            else:
+                mock_import.side_effect = ModuleNotFoundError()
+
+            objects, error = get_objects_for_pipeline(pipeline_name)
+
+            if expected_error is None:
+                assert error is None
+                assert len(objects) == 2
+                assert "perm1" in objects
+                assert "proc1" in objects
+                assert objects["perm1"] is MockedPermanence
+                assert objects["proc1"] is MockedPipelineProcess
+            else:
+                assert isinstance(error, expected_error)
+                assert objects == {}
