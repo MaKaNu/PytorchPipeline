@@ -57,11 +57,11 @@ def test_create_mask_values(masks, mask_creator, request):
         masks[3].view(1, *result.shape).type(torch.uint8), scale_factor=scale
     ).squeeze()
     result_img = torch.nn.functional.interpolate(result.view(1, *result.shape), scale_factor=scale).squeeze()
-    request.node.user_properties.append(("image_tensor", mask_img_0))
-    request.node.user_properties.append(("image_tensor", mask_img_1))
-    request.node.user_properties.append(("image_tensor", mask_img_2))
-    request.node.user_properties.append(("image_tensor", mask_img_3))
-    request.node.user_properties.append(("image_tensor", result_img))
+    request.node.user_properties.append(("image_tensor", "Mask 0", mask_img_0))
+    request.node.user_properties.append(("image_tensor", "Mask 1", mask_img_1))
+    request.node.user_properties.append(("image_tensor", "Mask 2", mask_img_2))
+    request.node.user_properties.append(("image_tensor", "Mask 3", mask_img_3))
+    request.node.user_properties.append(("image_tensor", "Combined Mask", result_img))
 
 
 def test_check_masks_none(mask_creator):
@@ -151,8 +151,8 @@ def test_erode(mask_creator, masks, kernel_size, padding, expected, request):
     scale = 200 / masks.shape[2]
     mask_img = torch.nn.functional.interpolate(masks.type(torch.uint8), scale_factor=scale).squeeze()
     result_img = torch.nn.functional.interpolate(eroded.type(torch.uint8), scale_factor=scale).squeeze()
-    request.node.user_properties.append(("image_tensor", mask_img))
-    request.node.user_properties.append(("image_tensor", result_img))
+    request.node.user_properties.append(("image_tensor", "Mask", mask_img))
+    request.node.user_properties.append(("image_tensor", "Result", result_img))
 
 
 @pytest.mark.parametrize(
@@ -217,5 +217,5 @@ def test_dilate(mask_creator, masks, kernel_size, padding, expected, request):
     scale = 200 / masks.shape[2]
     mask_img = torch.nn.functional.interpolate(masks.type(torch.uint8), scale_factor=scale).squeeze()
     result_img = torch.nn.functional.interpolate(dilated.type(torch.uint8), scale_factor=scale).squeeze()
-    request.node.user_properties.append(("image_tensor", mask_img))
-    request.node.user_properties.append(("image_tensor", result_img))
+    request.node.user_properties.append(("image_tensor", "Mask", mask_img))
+    request.node.user_properties.append(("image_tensor", "Result", result_img))

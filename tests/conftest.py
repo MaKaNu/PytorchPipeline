@@ -17,12 +17,18 @@ def pytest_runtest_makereport(item, call):
         # Get the pytest_html plugin (if available)
         pytest_html = item.config.pluginmanager.getplugin("html")
 
-        html_content = ""
+        html_content = '<div style="display: flex; gap: 20px; flex-wrap: wrap;">'
         # Extract images tensor from user_properties
-        for idx, prop in enumerate(item.user_properties):
-            if prop[0] == "image_tensor":
+        for prop in item.user_properties:
+            if prop[0] == "image_tensor" and len(prop) == 2:
                 img_tensor = prop[1]
-
+                html_content += '<figure style="margin: 0;">'
+            elif prop[0] == "image_tensor" and len(prop) == 3:
+                tensor_name = prop[1]
+                img_tensor = prop[2]
+                html_content += f'<figure style="margin: 0;"><figcaption>{tensor_name}</figcaption>'
+            else:
+                break
             if img_tensor is not None and pytest_html:
                 # Convert tensor to numpy array
                 if hasattr(img_tensor, "cpu"):
@@ -59,7 +65,7 @@ def pytest_runtest_makereport(item, call):
                 img_b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
 
                 # Add to HTML report using pytest-html's extras system
-                html_content += f'<img style="padding: 5px" src="data:image/png;base64,{img_b64}"/>'
+                html_content += f'<img style="padding: 5px" src="data:image/png;base64,{img_b64}"/></figure>'
             report.extras = [*getattr(report, "extra", []), pytest_html.extras.html(html_content)]
 
 
