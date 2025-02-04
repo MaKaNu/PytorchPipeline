@@ -130,38 +130,13 @@ class TestPipelineBuilder:
                 assert str(error)
 
     @pytest.mark.parametrize(
-        "context, config, expected_error",
-        [
-            ("context1", {}, InstTypeError),
-            ("context2", {"type": "UnknownClass"}, RegistryError),
-            ("context3", {"type": "MockedPermanence", "params": {"invalid": 1}}, RegistryParamError),
-            ("context4", {"type": "MockedPermanence"}, None),
-            ("context5", {"type": "MockedPipelineProcess"}, None),
-        ],
-        ids=("MissingType", "InvalidClass", "InvalidParams", "ValidPerma", "ValidProcess"),
-    )
-    def test_instantiate_from_config(self, context, config, expected_error):
-        self.pipeline_builder.register_class("MockedPermanence", MockedPermanence)
-        self.pipeline_builder.register_class("MockedPipelineProcess", MockedPipelineProcess)
-        result, error = self.pipeline_builder._instantiate_from_config(context, config)
-
-        if expected_error is None:
-            assert error is None
-            assert result is not None
-        else:
-            assert isinstance(error, expected_error)
-            assert str(error)
-            assert result is None
-
-    @pytest.mark.parametrize(
         "processes_config, expected_error",
         [
             ({"process1": {"type": "MockedPipelineProcess"}}, None),
             ({"process1": {"type": "UnknownClass"}}, RegistryError),
-            ({"process1": {"type": "MockedPipelineProcess", "params": {"invalid": 1}}}, RegistryParamError),
             ({"process1": {"type": "MockedPermanence"}}, InstTypeError),
         ],
-        ids=("ValidProcess", "InvalidProcess", "InvalidParams", "InvalidPermanence"),
+        ids=("ValidProcess", "InvalidProcess", "InvalidPermanence"),
     )
     def test_build_processes(self, processes_config, expected_error):
         self.pipeline_builder.register_class("MockedPipelineProcess", MockedPipelineProcess)
@@ -279,3 +254,63 @@ class TestPipelineBuilder:
             else:
                 assert isinstance(error, expected_error)
                 assert objects == {}
+
+    @pytest.mark.parametrize(
+        "context, config, expected_result, expected_error",
+        [
+            # Missing type key
+            (
+                "context1",
+                {},
+                None,
+                InstTypeError,
+            ),
+            # Unknown class
+            (
+                "context2",
+                {"type": "UnknownClass"},
+                None,
+                RegistryError,
+            ),
+            # Valid permanence with params
+            (
+                "context3",
+                {"type": "MockedPermanence", "params": {"invalid": 1}},
+                ("MockedPermanence", {"invalid": 1}),
+                None,
+            ),
+            # Valid permanence without params
+            (
+                "context4",
+                {"type": "MockedPermanence"},
+                ("MockedPermanence", {}),
+                None,
+            ),
+            # Valid process without params
+            (
+                "context5",
+                {"type": "MockedPipelineProcess"},
+                ("MockedPipelineProcess", {}),
+                None,
+            ),
+        ],
+        ids=(
+            "MissingType",
+            "UnknownClass",
+            "ValidPermanenceWithParams",
+            "ValidPermanenceWithoutParams",
+            "ValidProcessWithoutParams",
+        ),
+    )
+    def test_get_type_and_param(self, context, config, expected_result, expected_error):
+        self.pipeline_builder.register_class("MockedPermanence", MockedPermanence)
+        self.pipeline_builder.register_class("MockedPipelineProcess", MockedPipelineProcess)
+        result, error = self.pipeline_builder._get_type_and_param(context, config)
+
+        if expected_error is None:
+            assert error is None
+            assert result == expected_result
+        else:
+            assert isinstance(error, expected_error)
+            assert str(error)
+            assert result is None
