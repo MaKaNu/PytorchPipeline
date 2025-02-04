@@ -31,12 +31,12 @@ class Datasets(Permanence):
     ```toml
     [permanences.data]
     type = "Datasets"
-    params = { root = "data/datasets/pascal", format = "pascalvoc" }
+    params = { root = "data/datasets/pascal", data_format = "pascalvoc" }
     ```
 
     Attributes:
         root (Path): The root directory for the dataset.
-        format (str): The format of the dataset.
+        data_format (str): The format of the dataset.
 
     Methods:
         __post_init__(): Initializes the sam_dataset attribute with a VisionDataset instance.
@@ -44,10 +44,11 @@ class Datasets(Permanence):
     """
 
     root: Path
-    format: str
+    data_format: str
 
     def __post_init__(self):
         self.sam_dataset: VisionDataset = SamDataset(self.root)
+        self.segnet_dataset: VisionDataset = SegnetDataset(self.root, format=self.data_format)
 
     def cleanup(self):
         pass
@@ -332,6 +333,7 @@ class SamDataset(VisionDataset):
     def save_item(self, index, mask):
         mask = mask.squeeze()
         torchvision.utils.save_image(mask, str(self.target_location / self.images[index].name), "png")
+
 
 @dataclass
 class PascalVocFormat:

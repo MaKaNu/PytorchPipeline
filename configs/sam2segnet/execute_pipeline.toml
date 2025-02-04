@@ -1,6 +1,6 @@
 [permanences.data]
 type = "Datasets"
-params = { root = "data/datasets/mars", format = "pascalvoc" }
+params = { root = "data/datasets/mars", data_format = "pascalvoc" }
 
 [permanences.mask_creator]
 type = "MaskCreator"
