@@ -5,10 +5,12 @@ from logging import warning
 from pathlib import Path
 
 import cv2
+import tomllib
 import torch
 import torch.nn.functional as F
 import torchvision
 from torchvision.datasets import VisionDataset
+from torchvision.io import read_image
 
 from pytorchimagepipeline.abstractions import Permanence
 from pytorchimagepipeline.pipelines.sam2segnet.errors import (
@@ -326,6 +328,87 @@ class SamDataset(VisionDataset):
         bbox_classes = [obj.name for obj in annotation.objects]
 
         return img, bboxes, bbox_classes, filestem
+
+    def save_item(self, index, mask):
+        mask = mask.squeeze()
+        torchvision.utils.save_image(mask, str(self.target_location / self.images[index].name), "png")
+
+@dataclass
+class PascalVocFormat:
+    mean_std: dict
+    classes: list[str]
+    train_data: list[str]
+    val_data: list[str]
+    test_data: list[str]
+
+
+class SegnetDataset(VisionDataset):
+    def __init__(self, root=None, data_format="pascalvoc", transforms=None):
+        self.root = Path(root)
+        self.transforms = transforms
+        self.mode = "train"
+
+        supported_formats = ["pascalvoc"]
+
+        if data_format == "pascalvoc":
+            self._init_pascalvoc()
+        else:
+            raise FormatNotSupportedError(format, supported_formats)
+
+    def _init_pascalvoc(self):
+        with (self.root / "mean_std.json").open() as file_obj:
+            mean_std = json.load(file_obj)
+
+        train_data_file = self.root / "ImageSets/Segmentation/train.txt"
+        val_data_file = self.root / "ImageSets/Segmentation/val.txt"
+        test_data_file = self.root / "ImageSets/Segmentation/test.txt"
+
+        with train_data_file.open() as file_obj:
+            train_data = file_obj.readlines()
+
+        if val_data_file.exists():
+            with val_data_file.open() as file_obj:
+                val_data = file_obj.readlines()
+        else:
+            val_data = []
+
+        if test_data_file.exists():
+            with test_data_file.open() as file_obj:
+                test_data = file_obj.readlines()
+        else:
+            test_data = []
+
+        with (self.root / "classes.toml").open() as file_obj:
+            classes = tomllib.load(file_obj)
+
+        self.data_format = PascalVocFormat(mean_std, classes, train_data, val_data, test_data)
+
+    def set_mode(self, mode):
+        self.mode = mode
+
+    def __len__(self):
+        return len(self.images)
+
+    def __getitem__(self, index):
+        if self.mode == "train":
+            file_name = self.data_format.train_data[index]
+        elif self.mode == "val" and len(self.data_format.val_data) > 0:
+            file_name = self.data_format.val_data[index]
+        elif self.mode == "test" and len(self.data_format.test_data) > 0:
+            file_name = self.data_format.test_data[index]
+        else:
+            raise ValueError("Invalid mode")
+
+        # Read Image
+        img = read_image(self.root / "JPEGImages" / f"{file_name}.jpg")
+
+        # Read Mask
+        mask = read_image(self.root / "SegmentationClassSAM" / f"{file_name}.png")
+
+        if self.transforms:
+            img, mask = self.transforms(img, mask)
+
+        return img, mask
 
     def save_item(self, index, mask):
         mask = mask.squeeze()
