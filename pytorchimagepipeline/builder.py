@@ -184,7 +184,11 @@ class PipelineBuilder:
         """
         objects: dict[str, Permanence] = {}
         for name, config in self._config["permanences"].items():
-            instance, error = self._instantiate_from_config(name, config)
+            type_and_parmas, error = self._get_type_and_param(name, config)
+            if error:
+                return {}, error
+            cls_name, params = type_and_parmas
+            instance, error = self._instatiate_permanence(cls_name, params)
             if error:
                 return {}, error
             if isinstance(instance, Permanence):
@@ -203,40 +207,58 @@ class PipelineBuilder:
             instantiation or addition of a process, otherwise returns None.
         """
         for name, config in self._config["processes"].items():
-            process, error = self._instantiate_from_config(name, config)
+            type_and_params, error = self._get_type_and_param(name, config)
             if error:
                 return error
-            if not isinstance(process, PipelineProcess):
-                return InstTypeError(process)
-            observer.add_process(process)
+            cls_name, params = type_and_params
+            if not issubclass(self._class_registry[cls_name], PipelineProcess):
+                return InstTypeError(cls_name)
+            observer.add_process(ProcessWithParams(self._class_registry[cls_name], params))
         return None
 
-    def _instantiate_from_config(
+    def _get_type_and_param(
         self, context: str, config: dict[str, Any]
-    ) -> tuple[Permanence | PipelineProcess | None, None | Exception]:
+    ) -> tuple[tuple[str, dict[str, Any]] | None, None | Exception]:
         """
-        Instantiate an object from a configuration dictionary.
+        Retrieve the type and parameters from the configuration dictionary.
 
         Args:
-            context (str): The context or name of the configuration.
+            context (str): The context in which this function is called, used for error messages.
             config (dict[str, Any]): The configuration dictionary containing the type and parameters.
 
         Returns:
-            tuple[Permanence | PipelineProcess, Optional[Exception]]:
-            - An instance of the class specified in the configuration if successful.
-            - None and an appropriate exception if instantiation fails.
+            tuple: A tuple containing:
+                - A tuple of the class name (str) and parameters (dict[str, Any]), or None if the type is not found.
+                - An exception (None or Exception) if there is an error, otherwise None.
 
         Raises:
-            InstTypeError: If the "type" key is not present in the configuration.
-            RegistryError: If the class name specified in the configuration is not found in the class registry.
-            RegistryParamError: If there is a TypeError during instantiation, likely due to incorrect parameters.
+            InstTypeError: If the "type" key is not present in the config dictionary.
+            RegistryError: If the class name is not found in the class registry.
         """
+
         if "type" not in config:
             return None, InstTypeError(context)
         cls_name = config["type"]
         params = config.get("params", {})
         if cls_name not in self._class_registry:
             return None, RegistryError(f"{context}-{cls_name}")
+        return (cls_name, params), None
+
+    def _instatiate_permanence(
+        self, cls_name: str, params: dict[str, Any]
+    ) -> tuple[Permanence | None, None | Exception]:
+        """
+        Instantiate a permanence object from the class registry.
+
+        Args:
+            cls_name (str): The name of the class to instantiate.
+            params (dict[str, Any]): The parameters to pass to the class constructor.
+
+        Returns:
+            tuple[Permanence | None, None | Exception]: A tuple containing the instantiated
+            permanence object or None if instantiation fails, and None or an exception if
+            an error occurs.
+        """
         try:
             return self._class_registry[cls_name](**params), None
         except TypeError:
