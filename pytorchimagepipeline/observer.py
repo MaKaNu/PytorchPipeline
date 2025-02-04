@@ -64,7 +64,8 @@ class Observer(AbstractObserver):
         """
         for process in self._processes:
             self._current_process = process
-            error = process.execute(self)
+            process_instance = process.get_instance()
+            error = process_instance.execute(self)
             if error:
                 self._handle_error(error)
             self._current_process = None
@@ -87,7 +88,7 @@ class Observer(AbstractObserver):
         process_name = self._current_process.__class__.__name__
         raise ExecutionError(process_name, error)
 
-    def get_permanences(self, name: str) -> Any:
+    def get_permanence(self, name: str) -> Any:
         """
         Retrieve the permanence value associated with the given name.
 
