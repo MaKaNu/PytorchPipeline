@@ -38,6 +38,7 @@ from __future__ import annotations
 import importlib
 import os
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -62,6 +63,15 @@ from pytorchimagepipeline.errors import (
     RegistryParamError,
 )
 from pytorchimagepipeline.observer import Observer
+
+
+@dataclass
+class ProcessWithParams:
+    process: PipelineProcess
+    params: dict[str, Any]
+
+    def get_instance(self):
+        return self.process(**self.params)
 
 
 class PipelineBuilder:
