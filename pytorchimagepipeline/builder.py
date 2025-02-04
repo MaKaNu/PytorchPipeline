@@ -278,6 +278,8 @@ def get_objects_for_pipeline(pipeline_name: str) -> tuple[dict[str, type], None 
                          of the specified pipeline module.
     """
     full_module_name = "pytorchimagepipeline.pipelines." + pipeline_name
+    if pipeline_name == "core":
+        full_module_name = "pytorchimagepipeline." + pipeline_name
     try:
         module = importlib.import_module(full_module_name)
     except ModuleNotFoundError as e:
@@ -290,9 +292,14 @@ if __name__ == "__main__":
     # Example usage of the PipelineBuilder
 
     # Retrieve objects to be registered for the pipeline
-    objects, error = get_objects_for_pipeline("sam2segnet")
+    core_objects, error = get_objects_for_pipeline("core")
     if error:
         raise error
+    pipeline_objects, error = get_objects_for_pipeline("sam2segnet")
+    if error:
+        raise error
+
+    objects = core_objects | pipeline_objects
 
     # Initialize the PipelineBuilder
     builder = PipelineBuilder()
