@@ -10,17 +10,13 @@ import torchvision
 from torchvision.datasets import VisionDataset
 
 from pytorchimagepipeline.abstractions import Permanence
+from pytorchimagepipeline.pipelines.sam2segnet.errors import (
+    FormatNotSupportedError,
+    MaskNotAvailable,
+    MaskShapeError,
+    ModelNotSupportedError,
+)
 from pytorchimagepipeline.pipelines.sam2segnet.utils import parse_voc_xml
-
-
-class MaskNotAvailable(Exception):
-    def __init__(self):
-        super().__init__("Masks are not set by user. Please set the masks using set_current_masks method.")
-
-
-class MaskShapeError(Exception):
-    def __init__(self, shape):
-        super().__init__(f"The masks should be a 4D tensor with shape (N, C, H, W). Got shape: {shape}")
 
 
 @dataclass
