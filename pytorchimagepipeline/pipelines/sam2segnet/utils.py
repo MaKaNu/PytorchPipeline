@@ -94,6 +94,19 @@ def parse_voc_xml(xml_file: Path) -> tuple[ImageAnnotation | None, None | Except
 
 
 def get_palette(N=256, normalized=False):
+    """
+    Generates a color palette with N colors.
+    Source: https://gist.github.com/wllhf/a4533e0adebe57e3ed06d4b50c8419ae
+
+    Args:
+        N (int, optional): Number of colors in the palette. Default is 256.
+        normalized (bool, optional): If True, the color values are normalized to the range [0, 1].
+                                     If False, the color values are in the range [0, 255]. Default is False.
+
+    Returns:
+        list: A flattened list of RGB color values. The length of the list is 3 * N.
+    """
+
     def bitget(byteval, idx):
         return (byteval & (1 << idx)) != 0
 
