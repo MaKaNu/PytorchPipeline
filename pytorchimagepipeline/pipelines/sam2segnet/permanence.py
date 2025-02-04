@@ -1,12 +1,26 @@
+import json
 from dataclasses import dataclass
+from logging import warning
 from pathlib import Path
 
 import cv2
+import torch
+import torch.nn.functional as F
 import torchvision
 from torchvision.datasets import VisionDataset
 
 from pytorchimagepipeline.abstractions import Permanence
 from pytorchimagepipeline.pipelines.sam2segnet.utils import parse_voc_xml
+
+
+class MaskNotAvailable(Exception):
+    def __init__(self):
+        super().__init__("Masks are not set by user. Please set the masks using set_current_masks method.")
+
+
+class MaskShapeError(Exception):
+    def __init__(self, shape):
+        super().__init__(f"The masks should be a 4D tensor with shape (N, C, H, W). Got shape: {shape}")
 
 
 @dataclass
@@ -37,7 +51,200 @@ class Datasets(Permanence):
         self.sam_dataset: VisionDataset = SamDataset(self.root)
 
     def cleanup(self):
-        return super().cleanup()
+        pass
+
+
+@dataclass
+class MaskCreator(Permanence):
+    """
+    MaskCreator is a class that performs various morphological operations on binary masks.
+
+    Example TOML Config:
+    ```toml
+    [permanences.mask_creator]
+    type = "MaskCreator"
+    params = { morph_size = 1 , border_size = 1, ignore_value = 255 }
+    ```
+
+    Attributes:
+        morph_size (int): Size of the morphological kernel. Default is 3.
+        border_size (int): Size of the border to be created around the mask. Default is 4.
+        ignore_value (int): Value to be used for ignored regions in the mask. Default is 255.
+        current_masks (torch.Tensor): The current masks being processed.
+
+    Methods:
+        cleanup():
+            Placeholder method for cleanup operations.
+
+        set_current_masks(masks):
+            Sets the current masks to the provided masks.
+
+        create_mask(masks, masks_classes):
+            Creates a mask by performing a series of morphological operations and merging masks with classes.
+
+        merge_masks(mask_classes):
+            Merges stacked binary masks where higher indices have priority.
+
+        _create_border():
+            Creates a border around the current masks using dilation.
+
+        _erode(kernel_size=3, padding=1):
+            Erodes the current masks using a max pooling operation.
+
+        _dilate(kernel_size=3, padding=1):
+
+        _opening():
+            Performs an opening operation (erosion followed by dilation) on the current masks.
+
+        _closing():
+            Performs a closing operation (dilation followed by erosion) on the current masks.
+
+        _get_kernel_size():
+            Calculates and returns the kernel size based on the morphological size.
+    """
+
+    morph_size: int = 3
+    border_size: int = 4
+    ignore_value: int = 255
+    current_masks: torch.Tensor = None
+
+    def cleanup(self):
+        pass
+
+    def set_current_masks(self, masks: torch.ByteTensor) -> None:
+        self.current_masks = masks
+
+    def create_mask(
+        self, masks: torch.FloatTensor | torch.cuda.FloatTensor
+    ) -> torch.ByteTensor | torch.cuda.ByteTensor:
+        """
+        Creates and processes a mask tensor by applying a series of morphological operations and
+        merging masks based on their position.
+
+        Args:
+            masks (torch.FloatTensor | torch.cuda.FloatTensor): A tensor containing the initial masks.
+
+        Returns:
+            torch.ByteTensor | torch.cuda.ByteTensor: The processed mask tensor after applying
+            closing, opening, border creation and merging operations.
+        """
+        self.set_current_masks(masks)
+        self._check_masks()
+        self._closing()
+        self._opening()
+        self._create_border()
+        self._merge_masks()
+        return self.current_masks.type(torch.uint8)
+
+    def _check_masks(self):
+        """
+        Checks the validity of the current masks.
+
+        Raises:
+            MaskNotAvailable: If `self.current_masks` is None.
+            MaskShapeError: If `self.current_masks` does not have 4 dimensions.
+
+        Warnings:
+            If `self.current_masks` is not of type `torch.float`, a warning is issued and the masks are converted to float.
+        """
+        if self.current_masks is None:
+            raise MaskNotAvailable()
+        if len(self.current_masks.shape) != 4:
+            raise MaskShapeError(self.current_masks.shape)
+        if self.current_masks.dtype != torch.float32:
+            warning(UserWarning("Masks are not in float32 format. Converting to float32."))
+            self.set_current_masks(self.current_masks.type(torch.float32))
+
+    def _merge_masks(self):
+        """
+        Merge stacked binary masks where higher indices have priority
+
+        Args:
+            stacked_masks (torch.Tensor): Shape (N, H, W) where N is number of masks
+
+        Returns:
+            torch.Tensor: Shape (H, W) merged mask
+        """
+        result = torch.zeros_like(self.current_masks[0])
+        for mask in self.current_masks:
+            result[mask > 0] = mask[mask > 0]
+        self.set_current_masks(result)
+
+    def _create_border(self):
+        """
+        Creates a border around the current masks by performing max pooling with a specified kernel size and padding.
+        The mask + current mask are saved as the new current mask.
+
+        Args:
+            None
+
+        Returns:
+            None
+        """
+        kernel_size = 2 * self.border_size + 1
+        padding = self.border_size
+
+        # Perform max pooling to create the border effect
+        dilated = self._dilate(kernel_size, padding)
+
+        # Border is where dilated is 1 but mask is 0
+        border = (dilated - self.current_masks).bool() * self.ignore_value
+
+        # Add the border to the mask
+        self.set_current_masks(self.current_masks + border)
+
+    def _erode(self, kernel_size=3, padding=1):
+        """
+        Dilates the current masks using a max pooling operation.
+        This Implementation is only used for binary masks.
+        Morphological Operations for grayscale like described in the folowing articel are not implemented:
+        https://homepages.inf.ed.ac.uk/rbf/HIPR2/dilate.htm
+
+
+        Args:
+            kernel_size (int, optional): The size of the kernel to use for dilation. Default is 3.
+            padding (int, optional): The amount of padding to add to the masks before dilation. Default is 1.
+
+        Returns:
+            torch.Tensor: The dilated masks.
+        """
+        masks = self.current_masks
+        dilated = -F.max_pool2d(-masks, kernel_size=kernel_size, stride=1, padding=padding)
+        return dilated
+
+    def _dilate(self, kernel_size=3, padding=1):
+        """
+        Dilates the current masks using a max pooling operation.
+        This Implementation is only used for binary masks.
+        Morphological Operations for grayscale like described in the folowing articel are not implemented:
+        https://homepages.inf.ed.ac.uk/rbf/HIPR2/dilate.htm
+
+
+        Args:
+            kernel_size (int, optional): The size of the kernel to use for dilation. Default is 3.
+            padding (int, optional): The amount of padding to add to the masks before dilation. Default is 1.
+
+        Returns:
+            torch.Tensor: The dilated masks.
+        """
+        masks = self.current_masks
+        dilated = F.max_pool2d(masks, kernel_size=kernel_size, stride=1, padding=padding)
+        return dilated
+
+    def _opening(self):
+        kernel_size = self._get_kernel_size()
+        padding = self.morph_size
+        self.set_current_masks(self._erode(kernel_size=kernel_size, padding=padding))
+        self.set_current_masks(self._dilate(kernel_size=kernel_size, padding=padding))
+
+    def _closing(self):
+        kernel_size = self._get_kernel_size()
+        padding = self.morph_size
+        self.current_masks = self._dilate(kernel_size=kernel_size, padding=padding)
+        self.current_masks = self._erode(kernel_size=kernel_size, padding=padding)
+
+    def _get_kernel_size(self):
+        return 2 * self.morph_size + 1
 
 
 class SamDataset(VisionDataset):
