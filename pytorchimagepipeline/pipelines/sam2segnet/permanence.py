@@ -1,3 +1,4 @@
+import importlib
 import json
 from dataclasses import dataclass
 from logging import warning
@@ -241,6 +242,57 @@ class MaskCreator(Permanence):
 
     def _get_kernel_size(self):
         return 2 * self.morph_size + 1
+
+
+@dataclass
+class Network(Permanence):
+    """
+    Network is a class that provides a network to perform semantic segmentation.
+
+    Example TOML Config:
+    ```toml
+    [permanences.network]
+    type = "Network"
+    params = { model = "deeplabv3_resnet50", num_classes = 21, pretrained = True }
+    ```
+
+    Attributes:
+        model (str): The name of the model to use.
+        num_classes (int): The number of classes in the dataset.
+        pretrained (bool): Whether to use a pretrained model or not.
+        model_instance (torch.nn.Module): The instance of the model.
+
+    Methods:
+        cleanup():
+            Placeholder method for cleanup operations.
+    """
+
+    model: str
+    num_classes: int
+    pretrained: bool
+
+    model_instance: torch.nn.Module = None
+
+    def __post_init__(self):
+        self.implemented_models = [
+            "fcn_resnet50",
+            "fnc_resnet101",
+            "deeplabv3_resnet50",
+            "deeplabv3_resnet101",
+            "deeplabv3_mobilenet_v3_large",
+            "lsrap_mobilenet_v3_large",
+        ]
+        self._load_model()
+
+    def cleanup(self):
+        pass
+
+    def _load_model(self):
+        if self.model not in self.implemented_models:
+            raise ModelNotSupportedError(self.model, self.implemented_models)
+        get_model_func = importlib.import_module(f"torchvision.models.segmentation.{self.model}")
+
+        self.model_instance = get_model_func(pretrained=self.pretrained, num_classes=self.num_classes)
 
 
 class SamDataset(VisionDataset):
