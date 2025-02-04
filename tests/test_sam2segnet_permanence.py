@@ -23,7 +23,7 @@ def masks(request):
     elif request.param == "large":
         masks = torch.zeros((4, 1, 40, 70), dtype=torch.float32)
         masks[0, 0, 30:, 60:] = 7
-        masks[1, 0, :10, 20:30] = 5
+        masks[1, 0, :20, 10:30] = 5
         masks[2, 0, 10:30, 40:60] = 3
         masks[3, 0, 10:, :20] = 9
         return masks
