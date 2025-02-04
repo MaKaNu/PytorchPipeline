@@ -53,3 +53,58 @@ class PredictMasks(PipelineProcess):
 
             bar.update(1)
             bar.refresh()
+
+
+class TrainModel(PipelineProcess):
+    def __init__(self):
+        pass
+
+    def execute(self, observer):
+        device = observer.get_permanence("device").device
+        model = observer.get_permanence("model")
+        train_loader = observer.get_permanence("data").train_loader
+        val_loader = observer.get_permanence("data").val_loader
+        test_loader = observer.get_permanence("data").test_loader
+        criterion = observer.get_permanence("criterion")
+        optimizer = observer.get_permanence("optimizer")
+        num_epochs = observer.get_permanence("num_epochs")
+
+        model.to(device)
+
+        for epoch in range(num_epochs):
+            model.train()
+            running_loss = 0.0
+            for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            optimizer.zero_grad()
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            loss.backward()
+            optimizer.step()
+
+            running_loss += loss.item()
+
+            print(f"Epoch {epoch+1}/{num_epochs}, Training Loss: {running_loss/len(train_loader)}")
+
+            model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+            for inputs, labels in val_loader:
+                inputs, labels = inputs.to(device), labels.to(device)
+                outputs = model(inputs)
+                loss = criterion(outputs, labels)
+                val_loss += loss.item()
+
+            print(f"Epoch {epoch+1}/{num_epochs}, Validation Loss: {val_loss/len(val_loader)}")
+
+        model.eval()
+        test_loss = 0.0
+        with torch.no_grad():
+            for inputs, labels in test_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            test_loss += loss.item()
+
+        print(f"Test Loss: {test_loss/len(test_loader)}")
