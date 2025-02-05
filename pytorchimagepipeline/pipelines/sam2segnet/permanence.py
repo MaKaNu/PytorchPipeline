@@ -1,6 +1,7 @@
+import dataclasses
 import importlib
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from logging import warning
 from pathlib import Path
 
@@ -8,8 +9,10 @@ import cv2
 import torch
 import torch.nn.functional as F
 import torchvision
+import torchvision.transforms.v2 as transforms
 from torchvision.datasets import VisionDataset
-from torchvision.io import read_image
+from torchvision.io import decode_image
+from torchvision.tv_tensors import Mask
 
 from pytorchimagepipeline.abstractions import Permanence
 from pytorchimagepipeline.pipelines.sam2segnet.errors import (
