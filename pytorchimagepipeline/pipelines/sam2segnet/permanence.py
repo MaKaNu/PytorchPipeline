@@ -5,7 +5,6 @@ from logging import warning
 from pathlib import Path
 
 import cv2
-import tomllib
 import torch
 import torch.nn.functional as F
 import torchvision
@@ -17,6 +16,7 @@ from pytorchimagepipeline.pipelines.sam2segnet.errors import (
     FormatNotSupportedError,
     MaskNotAvailable,
     MaskShapeError,
+    ModeError,
     ModelNotSupportedError,
 )
 from pytorchimagepipeline.pipelines.sam2segnet.utils import parse_voc_xml
@@ -48,7 +48,9 @@ class Datasets(Permanence):
 
     def __post_init__(self):
         self.sam_dataset: VisionDataset = SamDataset(self.root)
-        self.segnet_dataset: VisionDataset = SegnetDataset(self.root, format=self.data_format)
+        self.segnet_dataset_train: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="train")
+        self.segnet_dataset_val: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="val")
+        self.segnet_dataset_test: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="test")
 
     def cleanup(self):
         pass
@@ -302,7 +304,7 @@ class SamDataset(VisionDataset):
     def __init__(self, root=None):
         self.root = Path(root)
 
-        self.images = sorted([p for p in (self.root / "Images").iterdir() if p.suffix == ".png"])
+        self.images = sorted([p for p in (self.root / "JPEGImages").iterdir() if p.suffix == ".jpg"])
         self.annotations = sorted([p for p in (self.root / "Annotations").iterdir() if p.suffix == ".xml"])
 
         with (self.root / "classes.json").open() as file_obj:
@@ -339,67 +341,49 @@ class SamDataset(VisionDataset):
 class PascalVocFormat:
     mean_std: dict
     classes: list[str]
-    train_data: list[str]
-    val_data: list[str]
-    test_data: list[str]
+    data: list[str]
+
+    def __len__(self):
+        return len(self.data)
 
 
 class SegnetDataset(VisionDataset):
-    def __init__(self, root=None, data_format="pascalvoc", transforms=None):
+    def __init__(self, root=None, data_format="pascalvoc", transforms=None, mode="train"):
+        super().__init__(root, transforms=transforms)
+        if mode not in ["train", "val", "test"]:
+            raise ModeError(mode)
         self.root = Path(root)
         self.transforms = transforms
-        self.mode = "train"
 
         supported_formats = ["pascalvoc"]
 
         if data_format == "pascalvoc":
-            self._init_pascalvoc()
+            self._init_pascalvoc(mode)
         else:
             raise FormatNotSupportedError(format, supported_formats)
 
-    def _init_pascalvoc(self):
+    def _init_pascalvoc(self, mode):
         with (self.root / "mean_std.json").open() as file_obj:
             mean_std = json.load(file_obj)
 
-        train_data_file = self.root / "ImageSets/Segmentation/train.txt"
-        val_data_file = self.root / "ImageSets/Segmentation/val.txt"
-        test_data_file = self.root / "ImageSets/Segmentation/test.txt"
+        data_file = self.root / f"ImageSets/Segmentation/{mode}.txt"
 
-        with train_data_file.open() as file_obj:
-            train_data = file_obj.readlines()
-
-        if val_data_file.exists():
-            with val_data_file.open() as file_obj:
-                val_data = file_obj.readlines()
+        if data_file.exists():
+            with data_file.open() as file_obj:
+                data = file_obj.read().split("\n")
         else:
-            val_data = []
+            data = []
 
-        if test_data_file.exists():
-            with test_data_file.open() as file_obj:
-                test_data = file_obj.readlines()
-        else:
-            test_data = []
+        with (self.root / "classes.json").open() as file_obj:
+            classes = json.load(file_obj)
 
-        with (self.root / "classes.toml").open() as file_obj:
-            classes = tomllib.load(file_obj)
-
-        self.data_format = PascalVocFormat(mean_std, classes, train_data, val_data, test_data)
-
-    def set_mode(self, mode):
-        self.mode = mode
+        self.dataobj = PascalVocFormat(mean_std, classes, data)
 
     def __len__(self):
-        return len(self.images)
+        return len(self.dataobj)
 
     def __getitem__(self, index):
-        if self.mode == "train":
-            file_name = self.data_format.train_data[index]
-        elif self.mode == "val" and len(self.data_format.val_data) > 0:
-            file_name = self.data_format.val_data[index]
-        elif self.mode == "test" and len(self.data_format.test_data) > 0:
-            file_name = self.data_format.test_data[index]
-        else:
-            raise ValueError("Invalid mode")
+        file_name = self.dataobj.data[index]
 
         # Read Image
         img = read_image(self.root / "JPEGImages" / f"{file_name}.jpg")

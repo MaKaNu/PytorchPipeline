@@ -1,9 +1,19 @@
 import logging
+from xml.etree import ElementTree as ET
 
+import numpy as np
 import pytest
 import torch
+from PIL import Image
 
-from pytorchimagepipeline.pipelines.sam2segnet.permanence import MaskCreator, MaskNotAvailable, MaskShapeError
+from pytorchimagepipeline.pipelines.sam2segnet.permanence import (
+    Datasets,
+    MaskCreator,
+    MaskNotAvailable,
+    MaskShapeError,
+    SamDataset,
+    SegnetDataset,
+)
 
 
 @pytest.fixture
@@ -219,3 +229,179 @@ def test_dilate(mask_creator, masks, kernel_size, padding, expected, request):
     result_img = torch.nn.functional.interpolate(dilated.type(torch.uint8), scale_factor=scale).squeeze()
     request.node.user_properties.append(("image_tensor", "Mask", mask_img))
     request.node.user_properties.append(("image_tensor", "Result", result_img))
+
+
+@pytest.fixture
+def datasets(tmp_datasets):
+    data_format = "pascalvoc"
+    return Datasets(root=tmp_datasets, data_format=data_format)
+
+
+@pytest.fixture(scope="session")
+def tmp_datasets(tmp_path_factory):
+    dataset_dir = tmp_path_factory.mktemp("Dataset")
+    sets_dir = dataset_dir / "ImageSets/Segmentation"
+    sets_dir.mkdir(parents=True)
+    image_dir = dataset_dir / "JPEGImages"
+    image_dir.mkdir(parents=True)
+    annotation_dir = dataset_dir / "Annotations"
+    annotation_dir.mkdir(parents=True)
+    segsam_dir = dataset_dir / "SegmentationClassSAM"
+    segsam_dir.mkdir(parents=True)
+
+    # Create train, val and test sets
+    image_train_list = sets_dir / "train.txt"
+    image_train_list.write_text("image1\nimage2\nimage3", encoding="utf-8")
+    image_val_list = sets_dir / "val.txt"
+    image_val_list.write_text("image4\nimage5\nimage6", encoding="utf-8")
+    image_test_list = sets_dir / "test.txt"
+    image_test_list.write_text("image7\nimage8\nimage9", encoding="utf-8")
+
+    # Create classes.json
+    content = '{"class0": 1, "class1": 2, "class2": 3}'
+    classes_file = dataset_dir / "classes.json"
+    classes_file.write_text(content, encoding="utf-8")
+
+    # Create mean_std.json
+    content = '{"mean": [0.485, 0.456, 0.406], "std": [0.229, 0.224, 0.225]}'
+    mean_std_file = dataset_dir / "mean_std.json"
+    mean_std_file.write_text(content, encoding="utf-8")
+
+    def compute_test_annotations(idx):
+        root = ET.Element("annotation")
+        ET.SubElement(root, "folder").text = "TestData"
+        ET.SubElement(root, "filename").text = f"image{idx}.jpg"
+        ET.SubElement(root, "path").text = str(image_dir / f"image{idx}.jpg")
+        source = ET.SubElement(root, "source")
+        ET.SubElement(source, "database").text = "TEMPORARY"
+        size = ET.SubElement(root, "size")
+        ET.SubElement(size, "width").text = "224"
+        ET.SubElement(size, "height").text = "224"
+        ET.SubElement(size, "depth").text = "3"
+        ET.SubElement(root, "segmented").text = "0"
+
+        for i in range(3):
+            obj = ET.SubElement(root, "object")
+            ET.SubElement(obj, "name").text = f"class{i}"
+            ET.SubElement(obj, "pose").text = "Unspecified"
+            ET.SubElement(obj, "truncated").text = "0"
+            ET.SubElement(obj, "difficult").text = "0"
+            bndbox = ET.SubElement(obj, "bndbox")
+            ET.SubElement(bndbox, "xmin").text = str(112 - 16 * i)
+            ET.SubElement(bndbox, "ymin").text = str(112 - 16 * i)
+            ET.SubElement(bndbox, "xmax").text = str(112 + 16 * i)
+            ET.SubElement(bndbox, "ymax").text = str(112 + 16 * i)
+
+        tree = ET.ElementTree(root)
+        return tree
+
+    def compute_test_images(idx):
+        r, g, b = 0, 32, 64
+        r += (16 * idx) & 0xFF
+        g += (16 * idx) & 0xFF
+        b += (16 * idx) & 0xFF
+        rgb = np.array([[[r, g, b]]], dtype=np.uint8)
+        ones = np.ones((224, 224, 3), dtype=np.uint8)
+        img = Image.fromarray(ones * rgb)
+        return img
+
+    def compute_test_masks():
+        combined = np.zeros((224, 224), dtype=np.uint8)
+
+        num_masks = 3
+        split_base = 224 // (num_masks + 1) * 2
+        ignore_width = 4
+
+        for i in range(num_masks):
+            # Create split positions
+            split_pos = -split_base + (i * split_base)
+            pos_ignore = split_pos - ignore_width
+            next_pos = split_pos + split_base - ignore_width
+
+            # Create ignore and label masks
+            ignore = np.tri(224, 224, split_pos, dtype=np.uint8) - np.tri(224, 224, pos_ignore, dtype=np.uint8)
+            label = np.tri(224, 224, next_pos, dtype=np.uint8) - np.tri(224, 224, split_pos, dtype=np.uint8)
+            combined += (ignore * 255) + (label * (i + 1))
+
+        split_pos = -split_base + ((i + 1) * split_base)
+        pos_ignore = split_pos - ignore_width
+        next_pos = split_pos + split_base - ignore_width
+        ignore = np.tri(224, 224, split_pos, dtype=np.uint8) - np.tri(224, 224, pos_ignore, dtype=np.uint8)
+        img = Image.fromarray(combined + (ignore * 255))
+        return img
+
+    for idx in range(1, 10):
+        # Create Images
+        img = compute_test_images(idx)
+        fn = image_dir / f"image{idx}.jpg"
+        img.save(fn)
+
+        # Create Annotations
+        tree = compute_test_annotations(idx)
+        tree.write(annotation_dir / f"image{idx}.xml")
+
+        # Create Segmentation Masks
+        mask = compute_test_masks()
+        mask_fn = segsam_dir / f"image{idx}.png"
+        mask.save(mask_fn)
+    return dataset_dir
+
+
+def test_post_init_sam_dataset(datasets):
+    datasets.__post_init__()
+    data0 = datasets.sam_dataset[0]
+    assert isinstance(datasets.sam_dataset, SamDataset)
+    assert datasets.sam_dataset.root == datasets.root
+    assert len(datasets.sam_dataset) == 9
+    assert len(data0) == 4
+
+
+def test_post_init_segnet_dataset_train(datasets):
+    datasets.__post_init__()
+    data0 = datasets.segnet_dataset_train[0]
+    data1 = datasets.segnet_dataset_train[1]
+    data2 = datasets.segnet_dataset_train[2]
+    assert isinstance(datasets.segnet_dataset_train, SegnetDataset)
+    assert datasets.segnet_dataset_train.root == datasets.root
+    assert len(datasets.segnet_dataset_train) == 3
+    assert len(data0) == 2
+    assert (data0[0].unique() == torch.tensor([15, 48, 79])).all()
+    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data1[0].unique() == torch.tensor([31, 64, 95])).all()
+    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data2[0].unique() == torch.tensor([47, 80, 111])).all()
+    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+
+
+def test_post_init_segnet_dataset_val(datasets):
+    datasets.__post_init__()
+    data0 = datasets.segnet_dataset_val[0]
+    data1 = datasets.segnet_dataset_val[1]
+    data2 = datasets.segnet_dataset_val[2]
+    assert isinstance(datasets.segnet_dataset_val, SegnetDataset)
+    assert datasets.segnet_dataset_val.root == datasets.root
+    assert len(datasets.segnet_dataset_val) == 3
+    assert len(data0) == 2
+    assert (data0[0].unique() == torch.tensor([63, 96, 127])).all()
+    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data1[0].unique() == torch.tensor([79, 112, 143])).all()
+    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data2[0].unique() == torch.tensor([95, 128, 159])).all()
+    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+
+
+def test_post_init_segnet_dataset_test(datasets):
+    datasets.__post_init__()
+    data0 = datasets.segnet_dataset_test[0]
+    data1 = datasets.segnet_dataset_test[1]
+    data2 = datasets.segnet_dataset_test[2]
+    assert isinstance(datasets.segnet_dataset_test, SegnetDataset)
+    assert datasets.segnet_dataset_test.root == datasets.root
+    assert len(datasets.segnet_dataset_test) == 3
+    assert len(data0) == 2
+    assert (data0[0].unique() == torch.tensor([111, 144, 175])).all()
+    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data1[0].unique() == torch.tensor([127, 160, 191])).all()
+    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert (data2[0].unique() == torch.tensor([143, 176, 207])).all()
+    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
