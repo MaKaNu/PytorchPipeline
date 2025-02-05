@@ -368,54 +368,47 @@ class SamDataset(VisionDataset):
 
 
 class SegnetDataset(VisionDataset):
-    def __init__(self, root=None, data_format="pascalvoc", transforms=None, mode="train"):
+    def __init__(self, root=None, transforms=None, mode="train", data_container=None):
         super().__init__(root, transforms=transforms)
         if mode not in ["train", "val", "test"]:
             raise ModeError(mode)
         self.root = Path(root)
         self.transforms = transforms
+        self.mode = mode
 
-        supported_formats = ["pascalvoc"]
+        self.dataobj = type(data_container)(**dataclasses.asdict(data_container))
+        self.dataobj.get_data(mode)
 
-        if data_format == "pascalvoc":
-            self._init_pascalvoc(mode)
-        else:
-            raise FormatNotSupportedError(format, supported_formats)
-
-    def _init_pascalvoc(self, mode):
-        with (self.root / "mean_std.json").open() as file_obj:
-            mean_std = json.load(file_obj)
-
-        data_file = self.root / f"ImageSets/Segmentation/{mode}.txt"
-
-        if data_file.exists():
-            with data_file.open() as file_obj:
-                data = file_obj.read().split("\n")
-        else:
-            data = []
-
-        with (self.root / "classes.json").open() as file_obj:
-            classes = json.load(file_obj)
-
-        self.dataobj = PascalVocFormat(mean_std, classes, data)
+        self._get_data_func()
 
     def __len__(self):
         return len(self.dataobj)
 
     def __getitem__(self, index):
         file_name = self.dataobj.data[index]
+        return self.get_data(file_name)
 
-        # Read Image
-        img = read_image(self.root / "JPEGImages" / f"{file_name}.jpg")
+    def _get_data_func(self):
+        def _get_train_data(file_name):
+            # Read Image
+            img = decode_image(self.root / "JPEGImages" / f"{file_name}.jpg")
 
-        # Read Mask
-        mask = read_image(self.root / "SegmentationClassSAM" / f"{file_name}.png")
+            # Read Mask
+            mask = Mask(decode_image(self.root / "SegmentationClassSAM" / f"{file_name}.png"))
 
-        if self.transforms:
-            img, mask = self.transforms(img, mask)
+            if self.transforms:
+                img, mask = self.transforms(img, mask)
+            return img, mask
 
-        return img, mask
+        def _get_val_test_data(file_name):
+            # Read Image
+            img = decode_image(self.root / "JPEGImages" / f"{file_name}.jpg")
 
-    def save_item(self, index, mask):
-        mask = mask.squeeze()
-        torchvision.utils.save_image(mask, str(self.target_location / self.images[index].name), "png")
+            if self.transforms:
+                img = self.transforms(img)
+            return img
+
+        if self.mode == "train":
+            self.get_data = _get_train_data
+        else:  # val or test
+            self.get_data = _get_val_test_data
