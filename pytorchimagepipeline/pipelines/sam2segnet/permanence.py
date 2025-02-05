@@ -78,12 +78,70 @@ class Datasets(Permanence):
 
     def __post_init__(self):
         self.sam_dataset: VisionDataset = SamDataset(self.root)
-        self.segnet_dataset_train: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="train")
-        self.segnet_dataset_val: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="val")
-        self.segnet_dataset_test: VisionDataset = SegnetDataset(self.root, data_format=self.data_format, mode="test")
+        self._load_data_container(self.data_format)
+        train_transforms, val_test_transforms = self._get_transforms()
+
+        self.segnet_dataset_train: VisionDataset = SegnetDataset(
+            self.root, data_container=self.data_container, transforms=train_transforms, mode="train"
+        )
+        self.segnet_dataset_val: VisionDataset = SegnetDataset(
+            self.root, data_container=self.data_container, transforms=val_test_transforms, mode="val"
+        )
+        self.segnet_dataset_test: VisionDataset = SegnetDataset(
+            self.root, data_container=self.data_container, transforms=val_test_transforms, mode="test"
+        )
 
     def cleanup(self):
         pass
+
+    def _load_data_container(self, data_format):
+        supported_formats = ["pascalvoc"]
+
+        if data_format == "pascalvoc":
+            self.data_container = PascalVocFormat(self.root)
+        else:
+            raise FormatNotSupportedError(format, supported_formats)
+
+    def val_available(self):
+        return len(self.segnet_dataset_val) > 0
+
+    def test_available(self):
+        return len(self.segnet_dataset_test) > 0
+
+    def _get_transforms(self):
+        """
+        Based on https://pytorch.org/vision/main/auto_examples/transforms/plot_transforms_getting_started.html
+        Creates and returns the transformation pipelines for training and validation/testing datasets.
+        The training transformations include:
+        - Conversion to PIL image
+        - Random horizontal flip
+        - Random vertical flip
+        - Random rotation within 15 degrees
+        - Conversion to tensor
+        - Normalization with mean [0.485, 0.456, 0.406] and std [0.229, 0.224, 0.225]
+        The validation/testing transformations include:
+        - Conversion to PIL image
+        - Conversion to tensor
+        - Normalization with mean [0.485, 0.456, 0.406] and std [0.229, 0.224, 0.225]
+        Returns:
+            tuple: A tuple containing the training transformations and validation/testing transformations.
+        """
+        mean = self.data_container.mean_std["mean"]
+        std = self.data_container.mean_std["std"]
+
+        train_transforms = transforms.Compose([
+            transforms.RandomResizedCrop(size=(224, 224), antialias=True),
+            transforms.RandomHorizontalFlip(p=0.5),
+            transforms.ToDtype(torch.float32, scale=True),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+
+        val_test_transforms = torchvision.transforms.Compose([
+            transforms.ToDtype(torch.float32, scale=True),
+            transforms.Normalize(mean=mean, std=std),
+        ])
+
+        return train_transforms, val_test_transforms
 
 
 @dataclass
