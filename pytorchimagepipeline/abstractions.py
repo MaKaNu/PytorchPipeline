@@ -86,3 +86,12 @@ class PipelineProcess(ABC):
             Optional[Exception]: An exception if an error occurs during execution, otherwise None.
         """
         ...
+
+    @abstractmethod
+    def skip(self) -> bool:
+        """Returns whether the process should be skipped.
+
+        Returns:
+            bool: True if the process should be skipped, False otherwise.
+        """
+        ...

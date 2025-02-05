@@ -55,13 +55,18 @@ class PredictMasks(PipelineProcess):
             bar.update(1)
             bar.refresh()
 
+    def skip(self):
+        return torch.tensor(list(map(Path.exists, self.dataset.images)), dtype=bool).all() and not self.force
+
 
 class TrainModel(PipelineProcess):
     def __init__(self, observer, force):
         super().__init__(observer, force)
 
-        model.to(device)
+    def skip(self):
+        return False
 
+    def execute(self):
         for epoch in range(num_epochs):
             model.train()
             running_loss = 0.0
