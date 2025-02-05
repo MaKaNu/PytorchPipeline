@@ -10,7 +10,8 @@ from pytorchimagepipeline.pipelines.sam2segnet.utils import get_palette
 
 
 class PredictMasks(PipelineProcess):
-    def __init__(self):
+    def __init__(self, observer: AbstractObserver, force: bool) -> None:
+        super().__init__(observer, force)
         sam_checkpoint = Path("data/models/sam_vit_h_4b8939.pth")
         model_type = "vit_h"
         self.sam = sam_model_registry[model_type](checkpoint=sam_checkpoint)
@@ -56,18 +57,8 @@ class PredictMasks(PipelineProcess):
 
 
 class TrainModel(PipelineProcess):
-    def __init__(self):
-        pass
-
-    def execute(self, observer):
-        device = observer.get_permanence("device").device
-        model = observer.get_permanence("model")
-        train_loader = observer.get_permanence("data").train_loader
-        val_loader = observer.get_permanence("data").val_loader
-        test_loader = observer.get_permanence("data").test_loader
-        criterion = observer.get_permanence("criterion")
-        optimizer = observer.get_permanence("optimizer")
-        num_epochs = observer.get_permanence("num_epochs")
+    def __init__(self, observer, force):
+        super().__init__(observer, force)
 
         model.to(device)
 

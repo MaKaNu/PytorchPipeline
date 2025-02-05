@@ -70,8 +70,10 @@ class ProcessWithParams:
     process: PipelineProcess
     params: dict[str, Any]
 
-    def get_instance(self):
-        return self.process(**self.params)
+    def get_instance(self, observer: Observer) -> PipelineProcess:
+        if "force" not in self.params:
+            self.params["force"] = False
+        return self.process(observer, **self.params)
 
 
 class PipelineBuilder:

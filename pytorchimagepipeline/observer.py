@@ -64,10 +64,11 @@ class Observer(AbstractObserver):
         """
         for process in self._processes:
             self._current_process = process
-            process_instance = process.get_instance()
-            error = process_instance.execute(self)
-            if error:
-                self._handle_error(error)
+            process_instance = process.get_instance(self)
+            if not process_instance.skip():
+                error = process_instance.execute()
+                if error:
+                    self._handle_error(error)
             self._current_process = None
 
     def _handle_error(self, error: Exception) -> None:

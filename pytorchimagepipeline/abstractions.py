@@ -60,8 +60,23 @@ class Permanence(ABC):
 class PipelineProcess(ABC):
     """Abstract base class for pipeline processes"""
 
+    def __init__(self, observer: AbstractObserver, force: bool) -> None:
+        """
+        Initializes the instance with the given observer.
+
+        When overriding this method, make sure to call the super().__init__(observer, force) method.
+        In genereal instead of creating a new instance of the observer, the observer should be passed as an argument.
+        The same applies to the force parameter.
+
+        Args:
+            observer (AbstractObserver): The observer to be assigned to the instance.
+        """
+
+        self.observer = observer
+        self.force = force
+
     @abstractmethod
-    def execute(self, observer: AbstractObserver) -> Optional[Exception]:
+    def execute(self) -> Optional[Exception]:
         """Executes the process.
 
         Args:
