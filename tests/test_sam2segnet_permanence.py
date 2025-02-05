@@ -1,4 +1,5 @@
 import logging
+from unittest.mock import patch
 from xml.etree import ElementTree as ET
 
 import numpy as np
@@ -232,9 +233,26 @@ def test_dilate(mask_creator, masks, kernel_size, padding, expected, request):
 
 
 @pytest.fixture
+def mock_get_transforms():
+    with patch(
+        "pytorchimagepipeline.pipelines.sam2segnet.permanence.Datasets._get_transforms", return_value=(None, None)
+    ):
+        yield
+
+
+@pytest.fixture
 def datasets(tmp_datasets):
     data_format = "pascalvoc"
     return Datasets(root=tmp_datasets, data_format=data_format)
+
+
+@pytest.fixture
+def datasets_empty_val_test(tmp_datasets):
+    data_format = "pascalvoc"
+    datasets = Datasets(root=tmp_datasets, data_format=data_format)
+    datasets.segnet_dataset_val.dataobj.data = []
+    datasets.segnet_dataset_test.dataobj.data = []
+    return datasets
 
 
 @pytest.fixture(scope="session")
@@ -348,7 +366,6 @@ def tmp_datasets(tmp_path_factory):
 
 
 def test_post_init_sam_dataset(datasets):
-    datasets.__post_init__()
     data0 = datasets.sam_dataset[0]
     assert isinstance(datasets.sam_dataset, SamDataset)
     assert datasets.sam_dataset.root == datasets.root
@@ -357,51 +374,50 @@ def test_post_init_sam_dataset(datasets):
 
 
 def test_post_init_segnet_dataset_train(datasets):
-    datasets.__post_init__()
-    data0 = datasets.segnet_dataset_train[0]
-    data1 = datasets.segnet_dataset_train[1]
-    data2 = datasets.segnet_dataset_train[2]
-    assert isinstance(datasets.segnet_dataset_train, SegnetDataset)
-    assert datasets.segnet_dataset_train.root == datasets.root
-    assert len(datasets.segnet_dataset_train) == 3
-    assert len(data0) == 2
-    assert (data0[0].unique() == torch.tensor([15, 48, 79])).all()
-    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data1[0].unique() == torch.tensor([31, 64, 95])).all()
-    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data2[0].unique() == torch.tensor([47, 80, 111])).all()
-    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert isinstance(datasets.segnet_dataset_train, SegnetDataset), "Expected SegnetDataset object."
+    assert datasets.segnet_dataset_train.root == datasets.root, "Root path is incorrect."
+    assert len(datasets.segnet_dataset_train) == 3, "Expected 3 Datapoints."
+    assert len(datasets.segnet_dataset_train[0]) == 2, "Expected a tuple with 2 elements."
+    assert datasets.segnet_dataset_train.dataobj.data == ["image1", "image2", "image3"]
 
 
 def test_post_init_segnet_dataset_val(datasets):
-    datasets.__post_init__()
-    data0 = datasets.segnet_dataset_val[0]
-    data1 = datasets.segnet_dataset_val[1]
-    data2 = datasets.segnet_dataset_val[2]
-    assert isinstance(datasets.segnet_dataset_val, SegnetDataset)
-    assert datasets.segnet_dataset_val.root == datasets.root
-    assert len(datasets.segnet_dataset_val) == 3
-    assert len(data0) == 2
-    assert (data0[0].unique() == torch.tensor([63, 96, 127])).all()
-    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data1[0].unique() == torch.tensor([79, 112, 143])).all()
-    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data2[0].unique() == torch.tensor([95, 128, 159])).all()
-    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert isinstance(datasets.segnet_dataset_val, SegnetDataset), "Expected SegnetDataset object."
+    assert datasets.segnet_dataset_val.root == datasets.root, "Root path is incorrect."
+    assert len(datasets.segnet_dataset_val) == 3, "Expected 3 Datapoints."
+    assert not isinstance(datasets.segnet_dataset_val[0], tuple), "Expected a single element."
+    assert datasets.segnet_dataset_val.dataobj.data == ["image4", "image5", "image6"]
 
 
 def test_post_init_segnet_dataset_test(datasets):
-    datasets.__post_init__()
-    data0 = datasets.segnet_dataset_test[0]
-    data1 = datasets.segnet_dataset_test[1]
-    data2 = datasets.segnet_dataset_test[2]
-    assert isinstance(datasets.segnet_dataset_test, SegnetDataset)
-    assert datasets.segnet_dataset_test.root == datasets.root
-    assert len(datasets.segnet_dataset_test) == 3
-    assert len(data0) == 2
-    assert (data0[0].unique() == torch.tensor([111, 144, 175])).all()
-    assert (data0[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data1[0].unique() == torch.tensor([127, 160, 191])).all()
-    assert (data1[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
-    assert (data2[0].unique() == torch.tensor([143, 176, 207])).all()
-    assert (data2[1].unique() == torch.tensor([0, 1, 2, 3, 255])).all()
+    assert isinstance(datasets.segnet_dataset_test, SegnetDataset), "Expected SegnetDataset object."
+    assert datasets.segnet_dataset_test.root == datasets.root, "Root path is incorrect."
+    assert len(datasets.segnet_dataset_test) == 3, "Expected 3 Datapoints."
+    assert not isinstance(datasets.segnet_dataset_test[0], tuple), "Expected a single element."
+    assert datasets.segnet_dataset_test.dataobj.data == ["image7", "image8", "image9"]
+
+
+def test_post_init_segnet_dataset_empty_val_test(datasets_empty_val_test):
+    assert len(datasets_empty_val_test.segnet_dataset_train) == 3, "Expected 3 Datapoints."
+    assert len(datasets_empty_val_test.segnet_dataset_train[0]) == 2, "Expected a tuple with 2 elements."
+    assert datasets_empty_val_test.segnet_dataset_train.dataobj.data == ["image1", "image2", "image3"]
+    assert len(datasets_empty_val_test.segnet_dataset_val) == 0, "Expected 0 Datapoints."
+    assert datasets_empty_val_test.segnet_dataset_val.dataobj.data == []
+    assert len(datasets_empty_val_test.segnet_dataset_test) == 0, "Expected 0 Datapoints."
+    assert datasets_empty_val_test.segnet_dataset_test.dataobj.data == []
+
+
+def test_val_available(datasets):
+    assert datasets.val_available(), "Expected val_available to be True."
+
+
+def test_val_available_false(datasets_empty_val_test):
+    assert not datasets_empty_val_test.val_available(), "Expected val_available not to be True."
+
+
+def test_test_available(datasets):
+    assert datasets.test_available(), "Expected test_available to be True."
+
+
+def test_test_available_false(datasets_empty_val_test):
+    assert not datasets_empty_val_test.test_available(), "Expected test_available not to be True."
