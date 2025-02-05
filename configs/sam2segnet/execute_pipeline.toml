@@ -11,3 +11,6 @@ type = "Device"
 
 [processes.predict_masks]
 type = "PredictMasks"
+
+[processes.train_model]
+type = "TrainModel"
