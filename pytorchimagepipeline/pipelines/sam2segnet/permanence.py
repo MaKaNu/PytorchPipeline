@@ -1,9 +1,18 @@
 import dataclasses
 import importlib
 import json
+import sys
 from dataclasses import dataclass, field
 from logging import warning
 from pathlib import Path
+
+try:
+    from tomllib import load as toml_load  # type ignore[import-not-found]
+except ImportError:
+    try:
+        from tomli import load as toml_load  # type: ignore  # noqa: PGH003 # type: ignore[unused-import]
+    except ImportError:
+        sys.exit("Error: This program requires either tomllib or tomli but neither is available")
 
 import cv2
 import torch
@@ -112,6 +121,58 @@ class TrainingComponents(Permanence):
             "L1Loss": torch.nn.L1Loss,
         }
         self.Criterion = criteria[self.criterion]
+
+    def cleanup(self):
+        pass
+
+
+@dataclass
+class HyperParameters(Permanence):
+    """
+    HyperParameters is a class that provides hyperparameters for the segmentation process.
+
+    Example TOML Config:
+    ```toml
+    [permanences.hyperparameters]
+    type = "Hyperparameters"
+    params = { hyper_config = "path/to/hyper_config.toml" }
+    ```
+
+    Attributes:
+        morph_size (int): Size of the morphological kernel. Default is 3.
+        border_size (int): Size of the border to be created around the mask. Default is 4.
+        ignore_value (int): Value to be used for ignored regions in the mask. Default is 255.
+
+    Methods:
+        cleanup():
+            Placeholder method for cleanup operations.
+    """
+
+    config_file: str
+
+    def __post_init__(self):
+        self.hyperparameters = self._load_hyperparameters()
+        self._calculate_batch_size()
+
+    def _load_hyperparameters(self):
+        with open(self.config_file) as file:
+            return toml_load.load(file)
+
+    def _calculate_batch_size(self):
+        # Calculate the batch size based on the available memory
+        total_memory = torch.cuda.get_device_properties(0).total_memory
+        reserved_memory = torch.cuda.memory_reserved(0)
+        available_memory = total_memory - reserved_memory
+
+        # Assuming each sample takes approximately 100MB of memory
+        sample_memory = self.hyperparameters["predicted_sample_size"] * 1024 * 1024
+        batch_size = available_memory // sample_memory
+
+        self.hyperparameters["batch_size"] = (
+            self.hyperparameters["batch_size_max"]
+            if batch_size > self.hyperparameters["batch_size_max"]
+            else batch_size
+        )
 
     def cleanup(self):
         pass
