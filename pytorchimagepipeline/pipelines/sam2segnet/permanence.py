@@ -53,6 +53,71 @@ class PascalVocFormat:
 
 
 @dataclass
+class TrainingComponents(Permanence):
+    """
+    TrainingComponents is a class that provides the components required for training a segmentation model.
+
+    Example TOML Config:
+    ```toml
+    [permanences.training_components]
+    type = "TrainingComponents"
+    params = { optimizer = "SGD", scheduler = "StepLR", criterion = "CrossEntropyLoss" }
+    ```
+
+    Attributes:
+        optimizer (str): The name of the optimizer to use.
+        scheduler (str): The name of the learning rate scheduler to use.
+        criterion (str): The name of the loss function to use.
+        Optimizer (torch.optim.Optimizer): The optimizer class.
+        Scheduler (torch.optim.lr_scheduler._LRScheduler): The scheduler class.
+        Criterion (torch.nn.Module): The loss function class.
+
+    Methods:
+        cleanup():
+            Placeholder method for cleanup operations.
+    """
+
+    optimizer: str
+    scheduler: str
+    criterion: str
+
+    def __post_init__(self):
+        self._load_optimizer()
+        self._load_scheduler()
+        self._load_criterion()
+
+    def _load_optimizer(self):
+        optimizers = {
+            "SGD": torch.optim.SGD,
+            "Adam": torch.optim.Adam,
+            "AdamW": torch.optim.AdamW,
+            "RMSprop": torch.optim.RMSprop,
+        }
+        self.Optimizer = optimizers[self.optimizer]
+
+    def _load_scheduler(self):
+        schedulers = {
+            "StepLR": torch.optim.lr_scheduler.StepLR,
+            "MultiStepLR": torch.optim.lr_scheduler.MultiStepLR,
+            "ExponentialLR": torch.optim.lr_scheduler.ExponentialLR,
+            "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
+        }
+        self.Scheduler = schedulers[self.scheduler]
+
+    def _load_criterion(self):
+        criteria = {
+            "CrossEntropyLoss": torch.nn.CrossEntropyLoss,
+            "BCELoss": torch.nn.BCELoss,
+            "MSELoss": torch.nn.MSELoss,
+            "L1Loss": torch.nn.L1Loss,
+        }
+        self.Criterion = criteria[self.criterion]
+
+    def cleanup(self):
+        pass
+
+
+@dataclass
 class Datasets(Permanence):
     """
     Datasets class is a class which provides torch datasets.
