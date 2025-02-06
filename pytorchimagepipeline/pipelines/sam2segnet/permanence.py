@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import dataclasses
 import importlib
 import json
@@ -199,10 +201,11 @@ class Datasets(Permanence):
         cleanup(): Placeholder method for cleanup operations.
     """
 
-    root: Path
+    root: Path | str
     data_format: str
 
     def __post_init__(self):
+        self.root = Path(self.root)
         self.sam_dataset: VisionDataset = SamDataset(self.root)
         self._load_data_container(self.data_format)
         train_transforms, val_test_transforms = self._get_transforms()
