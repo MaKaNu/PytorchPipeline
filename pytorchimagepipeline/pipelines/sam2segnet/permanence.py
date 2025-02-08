@@ -42,6 +42,7 @@ class PascalVocFormat:
     mean_std: dict = field(default_factory=dict)
     classes: list[str] = field(default_factory=list)
     data: list[str] = field(default_factory=list)
+    ignore = 255
 
     def __post_init__(self):
         with (self.root / "mean_std.json").open() as file_obj:
