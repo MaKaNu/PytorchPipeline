@@ -573,36 +573,19 @@ class SegnetDataset(VisionDataset):
         self.dataobj = type(data_container)(**dataclasses.asdict(data_container))
         self.dataobj.get_data(mode)
 
-        self._get_data_func()
-
     def __len__(self):
         return len(self.dataobj)
 
     def __getitem__(self, index):
-        file_name = self.dataobj.data[index]
-        return self.get_data(file_name)
+        filestem = self.dataobj.data[index]
 
-    def _get_data_func(self):
-        def _get_train_data(file_name):
-            # Read Image
-            img = decode_image(self.root / "JPEGImages" / f"{file_name}.jpg")
+        # Read Image
+        img = decode_image(self.root / "JPEGImages" / f"{filestem}.jpg")
 
-            # Read Mask
-            mask = Mask(decode_image(self.root / "SegmentationClassSAM" / f"{file_name}.png"))
+        # Read Mask
+        mask = Mask(decode_image(self.root / "SegmentationClassSAM" / f"{filestem}.png"))
 
-            if self.transforms:
-                img, mask = self.transforms(img, mask)
-            return img, mask
-
-        def _get_val_test_data(file_name):
-            # Read Image
-            img = decode_image(self.root / "JPEGImages" / f"{file_name}.jpg")
-
-            if self.transforms:
-                img = self.transforms(img)
-            return img
-
-        if self.mode == "train":
-            self.get_data = _get_train_data
-        else:  # val or test
-            self.get_data = _get_val_test_data
+        if self.transforms:
+            img, mask = self.transforms(img, mask)
+        mask = mask.to(torch.long).squeeze()
+        return img, mask
