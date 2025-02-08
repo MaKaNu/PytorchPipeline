@@ -113,7 +113,14 @@ class TrainingComponents(Permanence):
             "ExponentialLR": torch.optim.lr_scheduler.ExponentialLR,
             "ReduceLROnPlateau": torch.optim.lr_scheduler.ReduceLROnPlateau,
         }
+        schedulers_default_params = {
+            "StepLR": {"step_size": 30},
+            "MultiStepLR": {"milestones": [30, 60, 90]},
+            "ExponentialLR": {"gamma": 0.95},
+            "ReduceLROnPlateau": {},
+        }
         self.Scheduler = schedulers[self.scheduler]
+        self.scheduler_params = schedulers_default_params[self.scheduler]
 
     def _load_criterion(self):
         criteria = {
@@ -135,46 +142,42 @@ class HyperParameters(Permanence):
 
     Example TOML Config:
     ```toml
-    [permanences.hyperparameters]
+    [permanences.hyperparams]
     type = "Hyperparameters"
-    params = { hyper_config = "path/to/hyper_config.toml" }
+    params = { config_file = "path/to/hyper_config.toml" }
     ```
 
     Attributes:
-        morph_size (int): Size of the morphological kernel. Default is 3.
-        border_size (int): Size of the border to be created around the mask. Default is 4.
-        ignore_value (int): Value to be used for ignored regions in the mask. Default is 255.
+        hyper_config (Path | str): path to hyperparameters config file.
 
     Methods:
         cleanup():
             Placeholder method for cleanup operations.
     """
 
-    config_file: str
+    config_file: Path | str
 
     def __post_init__(self):
-        self.hyperparameters = self._load_hyperparameters()
-        self._calculate_batch_size()
+        self.config_file = Path(self.config_file)
+        self.hyperparams = self._load_hyperparams()
 
-    def _load_hyperparameters(self):
-        with open(self.config_file) as file:
-            return toml_load.load(file)
+    def _load_hyperparams(self):
+        with self.config_file.open(mode="rb") as file:
+            return toml_load(file)
 
-    def _calculate_batch_size(self):
+    def calculate_batch_size(self, device: torch.device):
         # Calculate the batch size based on the available memory
-        total_memory = torch.cuda.get_device_properties(0).total_memory
-        reserved_memory = torch.cuda.memory_reserved(0)
+        total_memory = torch.cuda.get_device_properties(device).total_memory
+        reserved_memory = torch.cuda.memory_reserved(device)
         available_memory = total_memory - reserved_memory
 
         # Assuming each sample takes approximately 100MB of memory
-        sample_memory = self.hyperparameters["predicted_sample_size"] * 1024 * 1024
+        sample_memory = self.hyperparams.get("predicted_sample_size", 100) * 1024 * 1024
         batch_size = available_memory // sample_memory
 
-        self.hyperparameters["batch_size"] = (
-            self.hyperparameters["batch_size_max"]
-            if batch_size > self.hyperparameters["batch_size_max"]
-            else batch_size
-        )
+        batch_max_size = self.hyperparams.get("batch_size_max", 20)
+
+        self.hyperparams["batch_size"] = batch_max_size if batch_size > batch_max_size else batch_size
 
     def cleanup(self):
         pass
