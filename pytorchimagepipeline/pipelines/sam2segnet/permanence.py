@@ -209,8 +209,8 @@ class Datasets(Permanence):
 
     def __post_init__(self):
         self.root = Path(self.root)
-        self.sam_dataset: VisionDataset = SamDataset(self.root)
         self._load_data_container(self.data_format)
+        self.sam_dataset: VisionDataset = SamDataset(self.root, data_container=self.data_container)
         train_transforms, val_test_transforms = self._get_transforms()
 
         self.segnet_dataset_train: VisionDataset = SegnetDataset(
@@ -521,11 +521,11 @@ class Network(Permanence):
 
 
 class SamDataset(VisionDataset):
-    def __init__(self, root=None):
+    def __init__(self, root=None, data_container=None):
         self.root = Path(root)
 
-        self.images = sorted([p for p in (self.root / "JPEGImages").iterdir() if p.suffix == ".jpg"])
-        self.annotations = sorted([p for p in (self.root / "Annotations").iterdir() if p.suffix == ".xml"])
+        self.dataobj = type(data_container)(**dataclasses.asdict(data_container))
+        self.dataobj.get_data("train")
 
         with (self.root / "classes.json").open() as file_obj:
             self.class_idx = json.load(file_obj)
@@ -533,24 +533,28 @@ class SamDataset(VisionDataset):
         self.target_location = self.root / "SegmentationClassSAM"
 
     def __len__(self):
-        return len(self.images)
+        return len(self.dataobj.data)
 
     def __getitem__(self, index):
+        # Read filestem
+        filestem = self.dataobj.data[index]
+
         # Read Image
-        img = cv2.imread(self.images[index])
+        img = cv2.imread(self.root / "JPEGImages" / f"{filestem}.jpg")
         img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-        # Read filestem
-        filestem = self.images[index].stem
-
         # Read Annotations
-        annotation, error = parse_voc_xml(self.annotations[index])
+        annotation, error = parse_voc_xml(self.root / "Annotations" / f"{filestem}.xml")
         if error:
             raise error
         bboxes = [obj.bndbox for obj in annotation.objects]
         bbox_classes = [obj.name for obj in annotation.objects]
 
         return img, bboxes, bbox_classes, filestem
+
+    def all_created(self):
+        files = (Path(stem).with_suffix(".png") for stem in self.dataobj.data)
+        return torch.tensor(list(map(Path.exists, map(self.target_location.joinpath, files))), dtype=bool).all()
 
     def save_item(self, index, mask):
         mask = mask.squeeze()
