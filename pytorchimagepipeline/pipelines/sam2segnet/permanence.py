@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import dataclasses
-import importlib
 import json
 import sys
 from dataclasses import dataclass, field
@@ -20,6 +19,7 @@ import cv2
 import torch
 import torch.nn.functional as F
 import torchvision
+import torchvision.models.segmentation as segmentation
 import torchvision.transforms.v2 as transforms
 from torchvision.datasets import VisionDataset
 from torchvision.io import decode_image
@@ -478,7 +478,7 @@ class Network(Permanence):
     ```toml
     [permanences.network]
     type = "Network"
-    params = { model = "deeplabv3_resnet50", num_classes = 21, pretrained = True }
+    params = { model = "deeplabv3_resnet50", num_classes = 21, pretrained = true }
     ```
 
     Attributes:
@@ -499,14 +499,22 @@ class Network(Permanence):
     model_instance: torch.nn.Module = None
 
     def __post_init__(self):
-        self.implemented_models = [
-            "fcn_resnet50",
-            "fnc_resnet101",
-            "deeplabv3_resnet50",
-            "deeplabv3_resnet101",
-            "deeplabv3_mobilenet_v3_large",
-            "lsrap_mobilenet_v3_large",
-        ]
+        self.implemented_models = {
+            "fcn_resnet50": segmentation.fcn_resnet50,
+            "fnc_resnet101": segmentation.fcn_resnet101,
+            "deeplabv3_resnet50": segmentation.deeplabv3_resnet50,
+            "deeplabv3_resnet101": segmentation.deeplabv3_resnet101,
+            "deeplabv3_mobilenet_v3_large": segmentation.deeplabv3_mobilenet_v3_large,
+            "lsrap_mobilenet_v3_large": segmentation.lraspp_mobilenet_v3_large,
+        }
+        self.pretrained_weights = {
+            "fcn_resnet50": segmentation.FCN_ResNet50_Weights.DEFAULT,
+            "fnc_resnet101": segmentation.FCN_ResNet101_Weights.DEFAULT,
+            "deeplabv3_resnet50": segmentation.DeepLabV3_ResNet50_Weights.DEFAULT,
+            "deeplabv3_resnet101": segmentation.DeepLabV3_ResNet101_Weights.DEFAULT,
+            "deeplabv3_mobilenet_v3_large": segmentation.DeepLabV3_MobileNet_V3_Large_Weights.DEFAULT,
+            "lsrap_mobilenet_v3_large": segmentation.LRASPP_MobileNet_V3_Large_Weights.DEFAULT,
+        }
         self._load_model()
 
     def cleanup(self):
@@ -515,9 +523,10 @@ class Network(Permanence):
     def _load_model(self):
         if self.model not in self.implemented_models:
             raise ModelNotSupportedError(self.model, self.implemented_models)
-        get_model_func = importlib.import_module(f"torchvision.models.segmentation.{self.model}")
+        get_model_func = self.implemented_models[self.model]
+        weights = self.pretrained_weights[self.model] if self.pretrained else None
 
-        self.model_instance = get_model_func(pretrained=self.pretrained, num_classes=self.num_classes)
+        self.model_instance = get_model_func(weights=weights, num_classes=self.num_classes)
 
 
 class SamDataset(VisionDataset):
