@@ -268,7 +268,7 @@ class Datasets(Permanence):
             transforms.Normalize(mean=mean, std=std),
         ])
 
-        val_test_transforms = torchvision.transforms.Compose([
+        val_test_transforms = transforms.Compose([
             transforms.ToDtype(torch.float32, scale=True),
             transforms.Normalize(mean=mean, std=std),
         ])
