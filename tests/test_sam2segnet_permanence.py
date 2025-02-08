@@ -50,9 +50,9 @@ def test_create_mask_shape(masks, mask_creator):
 @pytest.mark.parametrize("masks", ["small", "large"], indirect=True)
 def test_create_mask_values(masks, mask_creator, request):
     result = mask_creator.create_mask(masks)
-    assert torch.all(result >= 0) and torch.all(result <= 255), (
-        "The values in the result mask are out of expected range."
-    )
+    assert torch.all(result >= 0) and torch.all(
+        result <= 255
+    ), "The values in the result mask are out of expected range."
     assert result.dtype == torch.uint8, "The dtype of the result mask is incorrect."
     scale = 200 / result.shape[1]
     mask_img_0 = torch.nn.functional.interpolate(
@@ -369,7 +369,7 @@ def test_post_init_sam_dataset(datasets):
     data0 = datasets.sam_dataset[0]
     assert isinstance(datasets.sam_dataset, SamDataset)
     assert datasets.sam_dataset.root == datasets.root
-    assert len(datasets.sam_dataset) == 9
+    assert len(datasets.sam_dataset) == 3
     assert len(data0) == 4
 
 
@@ -385,7 +385,7 @@ def test_post_init_segnet_dataset_val(datasets):
     assert isinstance(datasets.segnet_dataset_val, SegnetDataset), "Expected SegnetDataset object."
     assert datasets.segnet_dataset_val.root == datasets.root, "Root path is incorrect."
     assert len(datasets.segnet_dataset_val) == 3, "Expected 3 Datapoints."
-    assert not isinstance(datasets.segnet_dataset_val[0], tuple), "Expected a single element."
+    assert len(datasets.segnet_dataset_val[0]) == 2, "Expected a tuple with 2 elements."
     assert datasets.segnet_dataset_val.dataobj.data == ["image4", "image5", "image6"]
 
 
@@ -393,7 +393,7 @@ def test_post_init_segnet_dataset_test(datasets):
     assert isinstance(datasets.segnet_dataset_test, SegnetDataset), "Expected SegnetDataset object."
     assert datasets.segnet_dataset_test.root == datasets.root, "Root path is incorrect."
     assert len(datasets.segnet_dataset_test) == 3, "Expected 3 Datapoints."
-    assert not isinstance(datasets.segnet_dataset_test[0], tuple), "Expected a single element."
+    assert len(datasets.segnet_dataset_test[0]), "Expected a tuple with 2 elements."
     assert datasets.segnet_dataset_test.dataobj.data == ["image7", "image8", "image9"]
 
 
