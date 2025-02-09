@@ -139,7 +139,7 @@ class ProgressManager(Permanence):
         if direct:
             self._init_live()
 
-    def _create_progress(self, color="#F55500"):
+    def _create_progress(self, color="#F55500", with_status=False):
         """
         Create a progress bar with specified color.
 
@@ -149,10 +149,14 @@ class ProgressManager(Permanence):
         Returns:
             Progress: A Progress object configured with the specified color.
         """
+        status = ("•", TextColumn("{task.fields[status]}")) if with_status else []
+
         return Progress(
             TextColumn(f"[bold{color}]" + "{task.description}"),
             BarColumn(style="#333333", complete_style=color, finished_style="#22FF55"),
             TextColumn("({task.completed}/{task.total})"),
+            *status,
+            "•",
             TimeRemainingColumn(),
             console=self.console,
         )
@@ -194,9 +198,9 @@ class ProgressManager(Permanence):
                 progress_key = next((key for key in self.progress_dict if task_name.lower() in key), None)
                 if progress_key is None:
                     raise NotImplementedError(f"Progress for {task_name} not found")
-                progress = self.progress_dict[task_name]
+                progress = self.progress_dict[progress_key]
                 # Add task to progress
-                task_id = progress.add_task(task_name, total=total)
+                task_id = progress.add_task(task_name, total=total, status="")
 
                 # Call the function with task_id
                 result = func(task_id, total, progress, *args, **kwargs)

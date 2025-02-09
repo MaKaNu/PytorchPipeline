@@ -3,6 +3,7 @@ from pytorchimagepipeline.pipelines.sam2segnet.permanence import (
     HyperParameters,
     MaskCreator,
     Network,
+    Sam2SegnetProgressManager,
     TrainingComponents,
 )
 from pytorchimagepipeline.pipelines.sam2segnet.processes import PredictMasks, TrainModel
@@ -13,5 +14,6 @@ permanences_to_register = {
     "MaskCreator": MaskCreator,
     "TrainingComponents": TrainingComponents,
     "HyperParameters": HyperParameters,
+    "Sam2SegnetProgressManager": Sam2SegnetProgressManager,
 }
 processes_to_register = {"PredictMasks": PredictMasks, "TrainModel": TrainModel}

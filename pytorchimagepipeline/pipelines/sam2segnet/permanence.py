@@ -26,6 +26,7 @@ from torchvision.io import decode_image
 from torchvision.tv_tensors import Mask
 
 from pytorchimagepipeline.abstractions import Permanence
+from pytorchimagepipeline.core.permanences import ProgressManager
 from pytorchimagepipeline.pipelines.sam2segnet.errors import (
     FormatNotSupportedError,
     MaskNotAvailable,
@@ -62,6 +63,50 @@ class PascalVocFormat:
                 self.data = file_obj.read().split("\n")
         else:
             self.data = []
+
+
+class Sam2SegnetProgressManager(ProgressManager):
+    """
+    A class to manage and display progress for the Sam2Segnet pipeline.
+
+    Example TOML Config:
+        ```toml
+        [permanences.progress_manager]
+        type = "Sam2SegnetProgressManager"
+        ```
+
+    Attributes:
+        progress_dict (dict): A dictionary to store progress bars for different stages.
+
+    Methods:
+        __init__(console=None):
+            Initializes the progress manager with optional console output.
+    """
+
+    def __init__(self, console=None):
+        """
+        Initialize the class with optional console parameter.
+
+        Args:
+            console (optional): An optional console object for logging or displaying progress. Defaults to None.
+
+        Attributes:
+            progress_dict (dict): A dictionary to store progress bars for different tasks.
+                - "epoch": Progress bar for tracking epochs with a specific color.
+                - "train_val_test": Progress bar for tracking training, validation, and testing with a specific color.
+
+        Methods:
+            _init_live(): Initializes live progress display.
+        """
+        super().__init__(console)
+
+        self.progress_dict |= {
+            "create_masks": self._create_progress(color="#22ff55", with_status=True),
+            "epoch": self._create_progress(color="#ff2255", with_status=True),
+            "train_val_test": self._create_progress(color="#5522ff", with_status=True),
+        }
+
+        self._init_live()
 
 
 @dataclass

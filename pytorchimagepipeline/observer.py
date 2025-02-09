@@ -20,6 +20,7 @@ You should have received a copy of the GNU General Public License
 along with this program. If not, see <https://www.gnu.org/licenses/>.
 """
 
+from functools import wraps
 from typing import Any, Optional
 
 from pytorchimagepipeline.abstractions import AbstractObserver, Permanence, PipelineProcess
@@ -62,14 +63,34 @@ class Observer(AbstractObserver):
         Returns:
             None
         """
-        for process in self._processes:
-            self._current_process = process
-            process_instance = process.get_instance(self)
-            if not process_instance.skip():
-                error = process_instance.execute()
-                if error:
-                    self._handle_error(error)
-            self._current_process = None
+
+        def empty_decorator(func):
+            @wraps(func)
+            def wrapper(total, *args, **kwargs):
+                return func(0, total, None, *args, **kwargs)
+
+        progress_manager = self._permanences.get("progress_manager", None)
+        decorator = progress_manager.progress_task if progress_manager else empty_decorator
+
+        @decorator("overall")
+        def _inner_run(task_id, total, progress) -> None:
+            for idx in range(total):
+                process = self._processes[idx]
+                self._current_process = process
+                process_instance = process.get_instance(self)
+                if not process_instance.skip():
+                    error = process_instance.execute()
+                    if error:
+                        self._handle_error(error)
+                self._current_process = None
+                if progress:
+                    progress.advance(task_id)
+
+        if progress_manager:
+            with self._permanences["progress_manager"].live:
+                _inner_run(len(self._processes))
+        else:
+            _inner_run(len(self._processes))
 
     def _handle_error(self, error: Exception) -> None:
         """

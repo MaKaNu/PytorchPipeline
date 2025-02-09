@@ -14,6 +14,9 @@ params = { config_file = "configs/sam2segnet/hyper_config.toml" }
 type = "Network"
 params = { model = "deeplabv3_resnet50", num_classes = 21, pretrained = true }
 
+[permanences.progress_manager]
+type = "Sam2SegnetProgressManager"
+
 [permanences.mask_creator]
 type = "MaskCreator"
 params = { morph_size = 1, border_size = 4, ignore_value = 255 }
