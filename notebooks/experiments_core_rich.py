@@ -1,8 +1,7 @@
 import time
 from functools import wraps
-from turtle import st
 
-from rich.console import Group
+from rich.console import Console, Group
 from rich.live import Live
 from rich.progress import BarColumn, Progress, TextColumn, TimeRemainingColumn
 
@@ -28,7 +27,7 @@ colors = [
 ]
 
 
-def too_many():
+def too_many():  # noqa: C901
     with Progress() as progress:
         task1 = progress.add_task("[red]Downloading...", total=2)
         task2 = progress.add_task("[green]Processing...", total=2)
@@ -48,7 +47,7 @@ def too_many():
                     progress.update(task2, completed=j)
                     for k in range(2):
                         progress.update(task3, completed=k)
-                        for l in range(2):
+                        for l in range(2):  # noqa: E741
                             progress.update(task4, completed=l)
                             for m in range(2):
                                 progress.update(task5, completed=m)
@@ -91,13 +90,13 @@ def simple_nested():
         task2 = progress.add_task("[green]Processing...", total=4)
         task3 = progress.add_task("[cyan]Cooking...", total=200)
 
-        for i in range(4):
+        for _ in range(4):
             progress.remove_task(task2)
             task2 = progress.add_task("[green]Processing...", total=4)
-            for j in range(4):
+            for _ in range(4):
                 progress.remove_task(task3)
                 task3 = progress.add_task("[cyan]Cooking...", total=200)
-                for k in range(200):
+                for _ in range(200):
                     progress.update(task3, advance=1)
                     time.sleep(0.01)
                 else:
@@ -165,7 +164,7 @@ def conditional():
     my_task()
 
 
-def multi_nested():
+def multi_nested():  # noqa: C901
     class ProgressManager:
         def __init__(self):
             self.progress = Progress(
@@ -279,32 +278,25 @@ def decorated():
         do_something("DO SOMETHING", 40)
 
 
-def class_based():
+def class_based():  # noqa: C901
     class ProgressManager:
         def __init__(self):
-            self.epoch_progress = Progress(
+            epoch_progress = Progress(
                 TextColumn("[bold #FF2255]epoch"),
                 BarColumn(style="#333333", complete_style="#FF2255", finished_style="#22FF55"),
                 TextColumn("({task.completed}/{task.total})"),
                 TimeRemainingColumn(),
             )
-            self.train_progress = Progress(
-                TextColumn("[bold #5522FF]training"),
-                BarColumn(style="#333333", complete_style="#5522FF", finished_style="#22FF55"),
-                TextColumn("({task.completed}/{task.total})"),
-                TimeRemainingColumn(),
-            )
-            self.val_progress = Progress(
-                TextColumn("[bold #5522FF]validation"),
+            train_progress = Progress(
+                TextColumn("[bold #5522FF]{task.description}"),
                 BarColumn(style="#333333", complete_style="#5522FF", finished_style="#22FF55"),
                 TextColumn("({task.completed}/{task.total})"),
                 TimeRemainingColumn(),
             )
 
             self.progress_dict = {
-                "epoch": self.epoch_progress,
-                "train": self.train_progress,
-                "val": self.val_progress,
+                "epoch": epoch_progress,
+                "train_val": train_progress,
             }
             group = Group(*self.progress_dict.values())
 
@@ -314,7 +306,8 @@ def class_based():
             def decorator(func):
                 @wraps(func)
                 def wrapper(total, *args, **kwargs):
-                    progress = self.progress_dict[task_name]
+                    progress_key = next((key for key in self.progress_dict if task_name in key), None)
+                    progress = self.progress_dict[progress_key]
                     # Add task to progress
                     task_id = progress.add_task(task_name, total=total)
 
@@ -354,4 +347,71 @@ def class_based():
         run_epoch(2)
 
 
-class_based()
+def class_based2():  # noqa: C901
+    class ProgressManager2:
+        def __init__(self, console=None):
+            self.console = console
+            self.progress_dict = {
+                "epoch": self._create_progress("#FF2255"),
+                "train_val": self._create_progress("#5522FF"),
+            }
+            group = Group(*self.progress_dict.values())
+
+            self.live = Live(group)
+
+        def _create_progress(self, color="#F55500"):
+            return Progress(
+                TextColumn(f"[bold{color}]" + "{task.description}"),
+                BarColumn(style="#333333", complete_style=color, finished_style="#22FF55"),
+                TextColumn("({task.completed}/{task.total})"),
+                TimeRemainingColumn(),
+                console=self.console,
+            )
+
+        def progress_task(self, task_name, visible=True):
+            def decorator(func):
+                @wraps(func)
+                def wrapper(total, *args, **kwargs):
+                    progress_key = next((key for key in self.progress_dict if task_name.lower() in key), None)
+                    progress = self.progress_dict[progress_key]
+                    # Add task to progress
+                    task_id = progress.add_task(task_name, total=total)
+
+                    # Call the function with task_id
+                    result = func(task_id, total, progress, *args, **kwargs)
+
+                    # Hide task when done
+                    progress.update(task_id, visible=visible)
+                    return result
+
+                return wrapper
+
+            return decorator
+
+    console = Console(force_terminal=True)
+    progress_manager = ProgressManager2(console)
+
+    @progress_manager.progress_task("train", visible=False)
+    def run_train(task_id, total, progress):
+        for _ in range(total):
+            progress.advance(task_id)
+            time.sleep(0.1)
+
+    @progress_manager.progress_task("val", visible=False)
+    def run_val(task_id, total, progress):
+        for _ in range(total):
+            progress.advance(task_id)
+            time.sleep(0.1)
+
+    @progress_manager.progress_task("Epoch")
+    def run_epoch(epoch_id, total, progress):
+        for _ in range(total):
+            run_train(40)
+            run_val(40)
+            progress.advance(epoch_id)
+
+    with progress_manager.live:
+        run_epoch(2)
+
+
+class_based2()
