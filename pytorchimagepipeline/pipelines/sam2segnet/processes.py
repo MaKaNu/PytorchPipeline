@@ -18,6 +18,7 @@ class PredictMasks(PipelineProcess):
         self.device = observer.get_permanence("device").device
         self.dataset = observer.get_permanence("data").sam_dataset
         self.mask_creator = observer.get_permanence("mask_creator")
+        self.progress_manager = observer.get_permanence("progress_manager")
 
     def execute(self):
         self.sam.to(self.device)
@@ -65,6 +66,7 @@ class PredictMasks(PipelineProcess):
 class TrainModel(PipelineProcess):
     def __init__(self, observer, force):
         super().__init__(observer, force)
+        self.progress_manager = observer.get_permanence("progress_manager")
         self.device = observer.get_permanence("device").device
         self.model = observer.get_permanence("network").model_instance
         self.model.to(self.device)
@@ -98,56 +100,93 @@ class TrainModel(PipelineProcess):
         return False
 
     def execute(self):
-        for epoch in range(self.num_epochs):
-            running_loss = self._train_step()
-            train_msg = f"Epoch {epoch + 1}/{self.num_epochs}, Training Loss: {running_loss / len(self.train_loader)}"
+        _epoch_step = self.get_epoch_step()
+        _epoch_step(self.num_epochs)
 
-            if self.datasets.val_available():
-                val_loss = self._validate_step(epoch)
-                val_msg = f"Epoch {epoch + 1}/{self.num_epochs}, Validation Loss: {val_loss / len(self.val_loader)}"
-
-        if self.datasets.test_available():
-            test_loss = self._test_step()
-            test_msg = f"Test Loss: {test_loss / len(self.test_loader)}"
-
-    def _train_step(self):
-        self.model.train()
-        running_loss = 0.0
-        for inputs, labels in self.train_loader:
-            inputs, labels = inputs.to(self.device), labels.to(self.device)
-
-            self.optimizer.zero_grad()
-            output = self.model(inputs)
-            main_pred, aux_pred = output.get("out"), output.get("aux", None)
-            main_loss = self.criterion(main_pred, labels)
-            aux_loss = self.criterion(aux_pred, labels) if aux_pred is not None else torch.zeros_like(main_loss)
-            loss = main_loss + self.hyperparams.get("aux_lambda", 0.4) * aux_loss
-            loss.backward()
-            self.optimizer.step()
-
-            running_loss += loss.item()
-        self.scheduler.step()
-
-        return running_loss
-
-    def _validate_step(self):
-        self.model.eval()
-        val_loss = 0.0
-        with torch.no_grad():
-            for inputs, labels in self.val_loader:
+    def get_train_step(self) -> callable:
+        @self.progress_manager.progress_task("train", visible=False)
+        def _train_step(train_id, total, progress):
+            self.model.train()
+            running_loss = 0.0
+            for idx, data in enumerate(self.train_loader):
+                inputs, labels = data
                 inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                val_loss += loss.item()
-        return val_loss
 
-    def _test_step(self):
-        self.model.eval()
-        test_loss = 0.0
-        with torch.no_grad():
-            for inputs, labels in self.test_loader:
-                inputs, labels = inputs.to(self.device), labels.to(self.device)
-                outputs = self.model(inputs)
-                loss = self.criterion(outputs, labels)
-                test_loss += loss.item()
-        return test_loss
+                self.optimizer.zero_grad()
+                output = self.model(inputs)
+                main_pred, aux_pred = output.get("out"), output.get("aux", None)
+                main_loss = self.criterion(main_pred, labels)
+                aux_loss = self.criterion(aux_pred, labels) if aux_pred is not None else torch.zeros_like(main_loss)
+                loss = main_loss + self.hyperparams.get("aux_lambda", 0.4) * aux_loss
+                loss.backward()
+                self.optimizer.step()
+
+                running_loss += loss.item()
+                progress.advance(train_id)
+                progress.update(train_id, status=f"Loss: {running_loss / (idx + 1)}")
+            self.scheduler.step()
+            return running_loss
+
+        return _train_step
+
+    def get_validate_step(self) -> callable:
+        @self.progress_manager.progress_task("val", visible=False)
+        def _validate_step(val_id, total, progress):
+            self.model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for idx, data in enumerate(self.val_loader):
+                    inputs, labels = data
+                    inputs, labels = inputs.to(self.device), labels.to(self.device)
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, labels)
+                    val_loss += loss.item()
+                    progress.advance(val_id)
+                    progress.update(val_id, status=f"Mean Val Loss: {val_loss / (idx + 1)}")
+            return val_loss
+
+        return _validate_step
+
+    def get_test_step(self) -> callable:
+        @self.progress_manager.progress_task("test", visible=False)
+        def _test_step(test_id, total, progress):
+            self.model.eval()
+            test_loss = 0.0
+            with torch.no_grad():
+                for idx, data in enumerate(self.test_loader):
+                    inputs, labels = data
+                    inputs, labels = inputs.to(self.device), labels.to(self.device)
+                    outputs = self.model(inputs)
+                    loss = self.criterion(outputs, labels)
+                    test_loss += loss.item()
+                    progress.advance(test_id)
+                    progress.update(test_id, status=f"Loss: {test_loss / (idx + 1)}")
+            return test_loss
+
+        return _test_step
+
+    def get_epoch_step(self) -> callable:
+        _train_step = self.get_train_step()
+        _validate_step = self.get_validate_step()
+        _test_step = self.get_test_step()
+
+        @self.progress_manager.progress_task("epoch", visible=False)
+        def _epoch_step(epoch_id, total, progress):
+            num_train = len(self.train_loader)
+            num_val = len(self.val_loader)
+            num_test = len(self.test_loader)
+            for epoch in range(total):
+                running_loss = _train_step(num_train)
+
+                if self.datasets.val_available():
+                    val_loss = _validate_step(num_val)
+                progress.advance(epoch_id)
+                status = f"Epoch: {epoch + 1}, Loss: {running_loss / num_train}"
+                progress.update(epoch_id, status=status)
+
+            if self.datasets.test_available():
+                test_loss = _test_step(num_test)
+                status = f"Epoch: {epoch + 1}, Loss: {running_loss / num_train}, Val Loss: {val_loss / num_val}, Test Loss: {test_loss / num_test}"
+                progress.update(epoch_id, status=status)
+
+        return _epoch_step
