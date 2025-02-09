@@ -47,6 +47,28 @@ def test_progress_manager(progress_manager, capsys):
     assert "overall" in captured.out
     assert "(5/5)" in captured.out
     assert "0:00:00" in captured.out
+    assert captured.out.count("•") == 1
+
+
+def test_progress_manager_with_status(progress_manager, capsys):
+    progress_manager.progress_dict["overall"] = progress_manager._create_progress(with_status=True)
+    progress_manager._init_live()
+
+    @progress_manager.progress_task("overall")
+    def run(task_id, total, progress):
+        for idx in range(total):
+            progress.advance(task_id)
+            progress.update(task_id, status=f"{idx}/{total}")
+            time.sleep(0.1)
+
+    with progress_manager.live:
+        run(5)
+    captured = capsys.readouterr()
+    assert "overall" in captured.out
+    assert "(5/5)" in captured.out
+    assert "0:00:00" in captured.out
+    assert "• 4/5 •" in captured.out
+    assert captured.out.count("•") == 2
 
 
 def test_progress_manager_nested(progress_manager, capsys):
